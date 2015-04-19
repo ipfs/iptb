@@ -243,6 +243,10 @@ func main() {
 
 	switch flag.Arg(0) {
 	case "init":
+		if *count == 0 {
+			fmt.Printf("please specify number of nodes: '%s -n=10 init'\n", os.Args[0])
+			return
+		}
 		err := IpfsInit(*count)
 		if err != nil {
 			fmt.Println("ipfs init err: ", err)
