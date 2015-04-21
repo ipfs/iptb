@@ -6,12 +6,14 @@ import (
 	serial "github.com/ipfs/go-ipfs/repo/fsrepo/serialize"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path"
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 )
 
 // GetNumNodes returns the number of testbed nodes configured in the testbed directory
@@ -160,11 +162,17 @@ func IpfsKill() error {
 		}
 
 		p.Wait()
+
+		err = os.Remove(path.Join(IpfsDirN(i), "daemon.pid"))
+		if err != nil {
+			fmt.Printf("error removing pid file for daemon %d: %s\n", i, err)
+			continue
+		}
 	}
 	return nil
 }
 
-func IpfsStart() error {
+func IpfsStart(waitall bool) error {
 	n := GetNumNodes()
 	for i := 0; i < n; i++ {
 		dir := IpfsDirN(i)
@@ -198,8 +206,29 @@ func IpfsStart() error {
 		if err != nil {
 			return err
 		}
+
+		// Make sure node 0 is up before starting the rest so
+		// bootstrapping works properly
+		if i == 0 || waitall {
+			err := waitForLive(fmt.Sprintf("localhost:%d", 5002+i))
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
+}
+
+func waitForLive(addr string) error {
+	for i := 0; i < 50; i++ {
+		c, err := net.Dial("tcp", addr)
+		if err == nil {
+			c.Close()
+			return nil
+		}
+		time.Sleep(time.Millisecond * 200)
+	}
+	return fmt.Errorf("node at %s failed to come online in given time period", addr)
 }
 
 func GetPeerID(n int) (string, error) {
@@ -261,6 +290,7 @@ func handleErr(s string, err error) {
 func main() {
 	count := flag.Int("n", 0, "number of ipfs nodes to initialize")
 	force := flag.Bool("f", false, "force initialization (overwrite existing configs)")
+	wait := flag.Bool("wait", false, "wait for nodes to come fully online before exiting")
 	flag.Usage = func() {
 		fmt.Println(helptext)
 	}
@@ -276,7 +306,7 @@ func main() {
 		err := IpfsInit(*count, *force)
 		handleErr("ipfs init err: ", err)
 	case "start":
-		err := IpfsStart()
+		err := IpfsStart(*wait)
 		handleErr("ipfs start err: ", err)
 	case "stop", "kill":
 		err := IpfsKill()
@@ -285,7 +315,7 @@ func main() {
 		err := IpfsKill()
 		handleErr("ipfs kill err: ", err)
 
-		err = IpfsStart()
+		err = IpfsStart(*wait)
 		handleErr("ipfs start err: ", err)
 	case "shell":
 		if len(flag.Args()) < 2 {
