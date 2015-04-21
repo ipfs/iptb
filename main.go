@@ -26,6 +26,11 @@ func GetNumNodes() int {
 }
 
 func TestBedDir() string {
+	tbd := os.Getenv("IPTB_ROOT")
+	if len(tbd) != 0 {
+		return tbd
+	}
+
 	home := os.Getenv("HOME")
 	if len(home) == 0 {
 		panic("could not find home")
