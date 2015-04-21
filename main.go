@@ -219,6 +219,8 @@ func IpfsStart(waitall bool) error {
 	return nil
 }
 
+// waitForLive polls the given endpoint until it is up, or until
+// a timeout
 func waitForLive(addr string) error {
 	for i := 0; i < 50; i++ {
 		c, err := net.Dial("tcp", addr)
@@ -231,6 +233,7 @@ func waitForLive(addr string) error {
 	return fmt.Errorf("node at %s failed to come online in given time period", addr)
 }
 
+// GetPeerID reads the config of node 'n' and returns its peer ID
 func GetPeerID(n int) (string, error) {
 	cfg, err := serial.Load(path.Join(IpfsDirN(n), "config"))
 	if err != nil {
@@ -239,7 +242,14 @@ func GetPeerID(n int) (string, error) {
 	return cfg.Identity.PeerID, nil
 }
 
+// IpfsShell sets up environment variables for a new shell to more easily
+// control the given daemon
 func IpfsShell(n int) error {
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		return fmt.Errorf("couldnt find shell!")
+	}
+
 	dir := IpfsDirN(n)
 	nenvs := []string{"IPFS_PATH=" + dir}
 
@@ -251,24 +261,25 @@ func IpfsShell(n int) error {
 		}
 		nenvs = append(nenvs, fmt.Sprintf("NODE%d=%s", i, peerid))
 	}
-
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		return fmt.Errorf("couldnt find shell!")
-	}
 	nenvs = append(os.Environ(), nenvs...)
 
 	return syscall.Exec(shell, []string{shell}, nenvs)
 }
 
-var helptext = `
-Ipfs Testbed
+var helptext = `Ipfs Testbed
 
-commands:
-	init -n=[number of nodes]
+Commands:
+	init 
 	    creates and initializes 'n' repos
+
+		Options:
+			-n=[number of nodes]
+			-f - force overwriting of existing nodes
 	start 
 	    starts up all testbed nodes
+
+		Options:
+			-wait - wait until daemons are fully initialized
 	stop 
 	    kills all testbed nodes
 	restart
@@ -278,6 +289,11 @@ commands:
 	    execs your shell with environment variables set as follows:
 	        IPFS_PATH - set to testbed node n's IPFS_PATH
 	        NODE[x] - set to the peer ID of node x
+
+Env Vars:
+
+IPTB_ROOT:
+	Used to specify the directory that nodes will be created in.
 `
 
 func handleErr(s string, err error) {
@@ -328,7 +344,7 @@ func main() {
 		err = IpfsShell(n)
 		handleErr("ipfs shell err: ", err)
 	default:
-		fmt.Println("unrecognized command: ", flag.Arg(0))
+		flag.Usage()
 		os.Exit(1)
 	}
 }
