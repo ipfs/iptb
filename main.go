@@ -58,10 +58,10 @@ func YesNoPrompt(prompt string) bool {
 	}
 }
 
-func IpfsInit(n int) error {
+func IpfsInit(n int, force bool) error {
 	p := IpfsDirN(0)
 	if _, err := os.Stat(p); !os.IsNotExist(err) {
-		if !YesNoPrompt("testbed nodes already exist, overwrite? [y/n]") {
+		if !force && !YesNoPrompt("testbed nodes already exist, overwrite? [y/n]") {
 			return nil
 		}
 		err := os.RemoveAll(TestBedDir())
@@ -238,8 +238,16 @@ commands:
 	        NODE[x] - set to the peer ID of node x
 `
 
+func handleErr(s string, err error) {
+	if err != nil {
+		fmt.Println(s, err)
+		os.Exit(1)
+	}
+}
+
 func main() {
 	count := flag.Int("n", 0, "number of ipfs nodes to initialize")
+	force := flag.Bool("f", false, "force initialization (overwrite existing configs)")
 	flag.Usage = func() {
 		fmt.Println(helptext)
 	}
@@ -250,48 +258,34 @@ func main() {
 	case "init":
 		if *count == 0 {
 			fmt.Printf("please specify number of nodes: '%s -n=10 init'\n", os.Args[0])
-			return
+			os.Exit(1)
 		}
-		err := IpfsInit(*count)
-		if err != nil {
-			fmt.Println("ipfs init err: ", err)
-		}
+		err := IpfsInit(*count, *force)
+		handleErr("ipfs init err: ", err)
 	case "start":
 		err := IpfsStart()
-		if err != nil {
-			fmt.Println("ipfs start err: ", err)
-		}
+		handleErr("ipfs start err: ", err)
 	case "stop", "kill":
 		err := IpfsKill()
-		if err != nil {
-			fmt.Println("ipfs kill err: ", err)
-		}
+		handleErr("ipfs kill err: ", err)
 	case "restart":
 		err := IpfsKill()
-		if err != nil {
-			fmt.Println("ipfs kill err: ", err)
-			return
-		}
+		handleErr("ipfs kill err: ", err)
+
 		err = IpfsStart()
-		if err != nil {
-			fmt.Println("ipfs start err: ", err)
-		}
+		handleErr("ipfs start err: ", err)
 	case "shell":
 		if len(flag.Args()) < 2 {
 			fmt.Println("please specify which node you want a shell for")
+			os.Exit(1)
 		}
 		n, err := strconv.Atoi(flag.Arg(1))
-		if err != nil {
-			fmt.Println("parse err: ", err)
-			return
-		}
+		handleErr("parse err: ", err)
 
 		err = IpfsShell(n)
-		if err != nil {
-			fmt.Println("ipfs shell err: ", err)
-		}
-
+		handleErr("ipfs shell err: ", err)
 	default:
 		fmt.Println("unrecognized command: ", flag.Arg(0))
+		os.Exit(1)
 	}
 }
