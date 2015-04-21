@@ -174,7 +174,20 @@ func IpfsStart() error {
 
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
-		err := cmd.Start()
+		stdout, err := os.Create(path.Join(dir, "daemon.stdout"))
+		if err != nil {
+			return err
+		}
+
+		stderr, err := os.Create(path.Join(dir, "daemon.stderr"))
+		if err != nil {
+			return err
+		}
+
+		cmd.Stdout = stdout
+		cmd.Stderr = stderr
+
+		err = cmd.Start()
 		if err != nil {
 			return err
 		}
