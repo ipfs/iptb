@@ -60,10 +60,16 @@ func YesNoPrompt(prompt string) bool {
 	}
 }
 
-func IpfsInit(n int, force bool) error {
+type initCfg struct {
+	Count     int
+	Force     bool
+	Bootstrap string
+}
+
+func IpfsInit(cfg *initCfg) error {
 	p := IpfsDirN(0)
 	if _, err := os.Stat(p); !os.IsNotExist(err) {
-		if !force && !YesNoPrompt("testbed nodes already exist, overwrite? [y/n]") {
+		if !cfg.Force && !YesNoPrompt("testbed nodes already exist, overwrite? [y/n]") {
 			return nil
 		}
 		err := os.RemoveAll(TestBedDir())
@@ -72,7 +78,7 @@ func IpfsInit(n int, force bool) error {
 		}
 	}
 	wait := sync.WaitGroup{}
-	for i := 0; i < n; i++ {
+	for i := 0; i < cfg.Count; i++ {
 		wait.Add(1)
 		go func(v int) {
 			defer wait.Done()
@@ -111,7 +117,7 @@ func IpfsInit(n int, force bool) error {
 		return err
 	}
 
-	for i := 1; i < n; i++ {
+	for i := 1; i < cfg.Count; i++ {
 		cfgpath := path.Join(IpfsDirN(i), "config")
 		cfg, err := serial.Load(cfgpath)
 		if err != nil {
@@ -147,7 +153,8 @@ func IpfsKill() error {
 	for i := 0; i < n; i++ {
 		pid, err := IpfsPidOf(i)
 		if err != nil {
-			return err
+			fmt.Printf("error killing daemon %d: %s\n", i, err)
+			continue
 		}
 
 		p, err := os.FindProcess(pid)
@@ -275,6 +282,9 @@ Commands:
 		Options:
 			-n=[number of nodes]
 			-f - force overwriting of existing nodes
+			-bootstrap - select bootstrapping style for cluster
+				choices: star, none
+
 	start 
 	    starts up all testbed nodes
 
@@ -304,8 +314,11 @@ func handleErr(s string, err error) {
 }
 
 func main() {
-	count := flag.Int("n", 0, "number of ipfs nodes to initialize")
-	force := flag.Bool("f", false, "force initialization (overwrite existing configs)")
+	cfg := new(initCfg)
+	flag.IntVar(&cfg.Count, "n", 0, "number of ipfs nodes to initialize")
+	flag.BoolVar(&cfg.Force, "f", false, "force initialization (overwrite existing configs)")
+	flag.StringVar(&cfg.Bootstrap, "bootstrap", "star", "select bootstrapping style for cluster")
+
 	wait := flag.Bool("wait", false, "wait for nodes to come fully online before exiting")
 	flag.Usage = func() {
 		fmt.Println(helptext)
@@ -315,11 +328,11 @@ func main() {
 
 	switch flag.Arg(0) {
 	case "init":
-		if *count == 0 {
+		if cfg.Count == 0 {
 			fmt.Printf("please specify number of nodes: '%s -n=10 init'\n", os.Args[0])
 			os.Exit(1)
 		}
-		err := IpfsInit(*count, *force)
+		err := IpfsInit(cfg)
 		handleErr("ipfs init err: ", err)
 	case "start":
 		err := IpfsStart(*wait)
