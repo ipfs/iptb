@@ -100,8 +100,26 @@ func IpfsInit(cfg *initCfg) error {
 	}
 	wait.Wait()
 
-	// Now setup configs to bootstrap to eachother
+	// Now setup bootstrapping
+	switch cfg.Bootstrap {
+	case "star":
+		err := starBootstrap(cfg)
+		if err != nil {
+			return err
+		}
+	case "none":
+		err := clearBootstrapping(cfg)
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unrecognized bootstrapping option: %s", cfg.Bootstrap)
+	}
 
+	return nil
+}
+
+func starBootstrap(cfg *initCfg) error {
 	// '0' node is the bootstrap node
 	cfgpath := path.Join(IpfsDirN(0), "config")
 	bcfg, err := serial.Load(cfgpath)
@@ -125,6 +143,28 @@ func IpfsInit(cfg *initCfg) error {
 		}
 
 		cfg.Bootstrap = []string{fmt.Sprintf("%s/ipfs/%s", bcfg.Addresses.Swarm[0], bcfg.Identity.PeerID)}
+		cfg.Addresses.Gateway = ""
+		cfg.Addresses.Swarm = []string{
+			fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", 4002+i),
+		}
+		cfg.Addresses.API = fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", 5002+i)
+		err = serial.WriteConfigFile(cfgpath, cfg)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func clearBootstrapping(cfg *initCfg) error {
+	for i := 0; i < cfg.Count; i++ {
+		cfgpath := path.Join(IpfsDirN(i), "config")
+		cfg, err := serial.Load(cfgpath)
+		if err != nil {
+			return err
+		}
+
+		cfg.Bootstrap = nil
 		cfg.Addresses.Gateway = ""
 		cfg.Addresses.Swarm = []string{
 			fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", 4002+i),
