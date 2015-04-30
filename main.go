@@ -16,6 +16,8 @@ import (
 	"time"
 
 	serial "github.com/ipfs/go-ipfs/repo/fsrepo/serialize"
+	manet "github.com/jbenet/go-multiaddr-net"
+	ma "github.com/jbenet/go-multiaddr-net/Godeps/_workspace/src/github.com/jbenet/go-multiaddr"
 )
 
 // GetNumNodes returns the number of testbed nodes configured in the testbed directory
@@ -66,6 +68,15 @@ type initCfg struct {
 	Count     int
 	Force     bool
 	Bootstrap string
+	PortStart int
+}
+
+func (c *initCfg) swarmAddrForPeer(i int) string {
+	return fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", c.PortStart+i)
+}
+
+func (c *initCfg) apiAddrForPeer(i int) string {
+	return fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", c.PortStart+1000+i)
 }
 
 func IpfsInit(cfg *initCfg) error {
@@ -121,7 +132,7 @@ func IpfsInit(cfg *initCfg) error {
 	return nil
 }
 
-func starBootstrap(cfg *initCfg) error {
+func starBootstrap(icfg *initCfg) error {
 	// '0' node is the bootstrap node
 	cfgpath := path.Join(IpfsDirN(0), "config")
 	bcfg, err := serial.Load(cfgpath)
@@ -129,15 +140,15 @@ func starBootstrap(cfg *initCfg) error {
 		return err
 	}
 	bcfg.Bootstrap = nil
-	bcfg.Addresses.Swarm = []string{"/ip4/127.0.0.1/tcp/4002"}
-	bcfg.Addresses.API = "/ip4/127.0.0.1/tcp/5002"
+	bcfg.Addresses.Swarm = []string{icfg.swarmAddrForPeer(0)}
+	bcfg.Addresses.API = icfg.apiAddrForPeer(0)
 	bcfg.Addresses.Gateway = ""
 	err = serial.WriteConfigFile(cfgpath, bcfg)
 	if err != nil {
 		return err
 	}
 
-	for i := 1; i < cfg.Count; i++ {
+	for i := 1; i < icfg.Count; i++ {
 		cfgpath := path.Join(IpfsDirN(i), "config")
 		cfg, err := serial.Load(cfgpath)
 		if err != nil {
@@ -147,9 +158,9 @@ func starBootstrap(cfg *initCfg) error {
 		cfg.Bootstrap = []string{fmt.Sprintf("%s/ipfs/%s", bcfg.Addresses.Swarm[0], bcfg.Identity.PeerID)}
 		cfg.Addresses.Gateway = ""
 		cfg.Addresses.Swarm = []string{
-			fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", 4002+i),
+			icfg.swarmAddrForPeer(i),
 		}
-		cfg.Addresses.API = fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", 5002+i)
+		cfg.Addresses.API = icfg.apiAddrForPeer(i)
 		err = serial.WriteConfigFile(cfgpath, cfg)
 		if err != nil {
 			return err
@@ -158,8 +169,8 @@ func starBootstrap(cfg *initCfg) error {
 	return nil
 }
 
-func clearBootstrapping(cfg *initCfg) error {
-	for i := 0; i < cfg.Count; i++ {
+func clearBootstrapping(icfg *initCfg) error {
+	for i := 0; i < icfg.Count; i++ {
 		cfgpath := path.Join(IpfsDirN(i), "config")
 		cfg, err := serial.Load(cfgpath)
 		if err != nil {
@@ -168,10 +179,8 @@ func clearBootstrapping(cfg *initCfg) error {
 
 		cfg.Bootstrap = nil
 		cfg.Addresses.Gateway = ""
-		cfg.Addresses.Swarm = []string{
-			fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", 4002+i),
-		}
-		cfg.Addresses.API = fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", 5002+i)
+		cfg.Addresses.Swarm = []string{icfg.swarmAddrForPeer(i)}
+		cfg.Addresses.API = icfg.apiAddrForPeer(i)
 		err = serial.WriteConfigFile(cfgpath, cfg)
 		if err != nil {
 			return err
@@ -259,7 +268,18 @@ func IpfsStart(waitall bool) error {
 		// Make sure node 0 is up before starting the rest so
 		// bootstrapping works properly
 		if i == 0 || waitall {
-			err := waitForLive(fmt.Sprintf("localhost:%d", 5002+i))
+			cfg, err := serial.Load(path.Join(IpfsDirN(i), "config"))
+			if err != nil {
+				return err
+			}
+
+			maddr := ma.StringCast(cfg.Addresses.API)
+			_, addr, err := manet.DialArgs(maddr)
+			if err != nil {
+				return err
+			}
+
+			err = waitForLive(addr)
 			if err != nil {
 				return err
 			}
@@ -371,6 +391,7 @@ func handleErr(s string, err error) {
 func main() {
 	cfg := new(initCfg)
 	flag.IntVar(&cfg.Count, "n", 0, "number of ipfs nodes to initialize")
+	flag.IntVar(&cfg.PortStart, "p", 4002, "port to start allocations from")
 	flag.BoolVar(&cfg.Force, "f", false, "force initialization (overwrite existing configs)")
 	flag.StringVar(&cfg.Bootstrap, "bootstrap", "star", "select bootstrapping style for cluster")
 
