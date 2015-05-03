@@ -1,12 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -72,7 +73,7 @@ type initCfg struct {
 }
 
 func (c *initCfg) swarmAddrForPeer(i int) string {
-	return fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", c.PortStart+i)
+	return fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", c.PortStart+i)
 }
 
 func (c *initCfg) apiAddrForPeer(i int) string {
@@ -279,7 +280,7 @@ func IpfsStart(waitall bool) error {
 				return err
 			}
 
-			err = waitForLive(addr)
+			err = waitForLive(cfg.Identity.PeerID, addr)
 			if err != nil {
 				return err
 			}
@@ -290,11 +291,24 @@ func IpfsStart(waitall bool) error {
 
 // waitForLive polls the given endpoint until it is up, or until
 // a timeout
-func waitForLive(addr string) error {
+func waitForLive(peerid, addr string) error {
 	for i := 0; i < 50; i++ {
-		c, err := net.Dial("tcp", addr)
+		resp, err := http.Get("http://" + addr + "/api/v0/id")
 		if err == nil {
-			c.Close()
+			out := make(map[string]interface{})
+			err := json.NewDecoder(resp.Body).Decode(&out)
+			if err != nil {
+				return fmt.Errorf("liveness check failed: %s", err)
+			}
+			id, ok := out["ID"]
+			if !ok {
+				return fmt.Errorf("liveness check failed: ID field not present in output")
+			}
+			idstr := id.(string)
+			if idstr != peerid {
+				return fmt.Errorf("liveness check failed: unexpected peer at endpoint")
+			}
+
 			return nil
 		}
 		time.Sleep(time.Millisecond * 200)
