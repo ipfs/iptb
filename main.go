@@ -232,6 +232,7 @@ func IpfsKill() error {
 }
 
 func IpfsStart(waitall bool) error {
+	var addrs []string
 	n := GetNumNodes()
 	for i := 0; i < n; i++ {
 		dir := IpfsDirN(i)
@@ -280,18 +281,27 @@ func IpfsStart(waitall bool) error {
 				return err
 			}
 
-			err = waitForLive(cfg.Identity.PeerID, addr)
+			addrs = append(addrs, addr)
+
+			err = waitOnAPI(cfg.Identity.PeerID, addr)
 			if err != nil {
 				return err
 			}
 		}
 	}
+	if waitall {
+		for i := 0; i < n; i++ {
+			err := waitOnSwarmPeers(addrs[i])
+			if err != nil {
+				return err
+			}
+		}
+
+	}
 	return nil
 }
 
-// waitForLive polls the given endpoint until it is up, or until
-// a timeout
-func waitForLive(peerid, addr string) error {
+func waitOnAPI(peerid, addr string) error {
 	for i := 0; i < 50; i++ {
 		resp, err := http.Get("http://" + addr + "/api/v0/id")
 		if err == nil {
@@ -314,6 +324,29 @@ func waitForLive(peerid, addr string) error {
 		time.Sleep(time.Millisecond * 200)
 	}
 	return fmt.Errorf("node at %s failed to come online in given time period", addr)
+}
+
+func waitOnSwarmPeers(addr string) error {
+	for i := 0; i < 50; i++ {
+		resp, err := http.Get("http://" + addr + "/api/v0/swarm/peers")
+		if err == nil {
+			out := make(map[string]interface{})
+			err := json.NewDecoder(resp.Body).Decode(&out)
+			if err != nil {
+				return fmt.Errorf("liveness check failed: %s", err)
+			}
+
+			peers := out["Strings"].([]interface{})
+			if len(peers) == 0 {
+				time.Sleep(time.Millisecond * 200)
+				continue
+			}
+
+			return nil
+		}
+		time.Sleep(time.Millisecond * 200)
+	}
+	return fmt.Errorf("node at %s failed to bootstrap in given time period", addr)
 }
 
 // GetPeerID reads the config of node 'n' and returns its peer ID
