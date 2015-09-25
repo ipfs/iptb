@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -17,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	kingpin "github.com/alecthomas/kingpin"
 	serial "github.com/ipfs/go-ipfs/repo/fsrepo/serialize"
 
 	manet "github.com/jbenet/go-multiaddr-net"
@@ -402,38 +402,38 @@ func GetAttr(attr string, node int) (string, error) {
 var helptext = `Ipfs Testbed
 
 Commands:
-	init 
-	    creates and initializes 'n' repos
+  init 
+      creates and initializes 'n' repos
 
-		Options:
-			-n=[number of nodes]
-			-f - force overwriting of existing nodes
-			-bootstrap - select bootstrapping style for cluster
-				choices: star, none
+    Options:
+      -n=[number of nodes]
+      -f - force overwriting of existing nodes
+      -bootstrap - select bootstrapping style for cluster
+        choices: star, none
 
-	start 
-	    starts up all testbed nodes
+  start 
+      starts up all testbed nodes
 
-		Options:
-			-wait - wait until daemons are fully initialized
-	stop 
-	    kills all testbed nodes
-	restart
-	    kills, then restarts all testbed nodes
+    Options:
+      -wait - wait until daemons are fully initialized
+  stop 
+      kills all testbed nodes
+  restart
+      kills, then restarts all testbed nodes
 
-	shell [n]
-	    execs your shell with environment variables set as follows:
-	        IPFS_PATH - set to testbed node n's IPFS_PATH
-	        NODE[x] - set to the peer ID of node x
+  shell [n]
+      execs your shell with environment variables set as follows:
+          IPFS_PATH - set to testbed node n's IPFS_PATH
+          NODE[x] - set to the peer ID of node x
 
-	get [attribute] [node]
-		get an attribute of the given node
-		currently supports: "id"
+  get [attribute] [node]
+    get an attribute of the given node
+    currently supports: "id"
 
 Env Vars:
 
 IPTB_ROOT:
-	Used to specify the directory that nodes will be created in.
+  Used to specify the directory that nodes will be created in.
 `
 
 func handleErr(s string, err error) {
@@ -445,23 +445,22 @@ func handleErr(s string, err error) {
 
 func main() {
 	cfg := new(initCfg)
-	flag.IntVar(&cfg.Count, "n", 0, "number of ipfs nodes to initialize")
-	flag.IntVar(&cfg.PortStart, "p", 4002, "port to start allocations from")
-	flag.BoolVar(&cfg.Force, "f", false, "force initialization (overwrite existing configs)")
-	flag.BoolVar(&cfg.Mdns, "mdns", false, "turn on mdns for nodes")
-	flag.StringVar(&cfg.Bootstrap, "bootstrap", "star", "select bootstrapping style for cluster")
+	kingpin.Flag("n", "number of ipfs nodes to initialize").Short('n').IntVar(&cfg.Count)
+	kingpin.Flag("p", "port to start allocations from").Default("4002").IntVar(&cfg.PortStart)
+	kingpin.Flag("f", "force initialization (overwrite existing configs)").BoolVar(&cfg.Force)
+	kingpin.Flag("mdns", "turn on mdns for nodes").BoolVar(&cfg.Mdns)
+	kingpin.Flag("bootstrap", "select bootstrapping style for cluster").Default("star").StringVar(&cfg.Bootstrap)
 
-	wait := flag.Bool("wait", false, "wait for nodes to come fully online before exiting")
-	flag.Usage = func() {
-		fmt.Println(helptext)
-	}
+	wait := kingpin.Flag("wait", "wait for nodes to come fully online before exiting").Bool()
 
-	flag.Parse()
+	var args []string
+	kingpin.Arg("args", "arguments").StringsVar(&args)
+	kingpin.Parse()
 
-	switch flag.Arg(0) {
+	switch args[0] {
 	case "init":
 		if cfg.Count == 0 {
-			fmt.Printf("please specify number of nodes: '%s -n=10 init'\n", os.Args[0])
+			fmt.Printf("please specify number of nodes: '%s init -n 10'\n", os.Args[0])
 			os.Exit(1)
 		}
 		err := IpfsInit(cfg)
@@ -479,29 +478,30 @@ func main() {
 		err = IpfsStart(*wait)
 		handleErr("ipfs start err: ", err)
 	case "shell":
-		if len(flag.Args()) < 2 {
+		if len(args) < 2 {
 			fmt.Println("please specify which node you want a shell for")
 			os.Exit(1)
 		}
-		n, err := strconv.Atoi(flag.Arg(1))
+		n, err := strconv.Atoi(args[1])
 		handleErr("parse err: ", err)
 
 		err = IpfsShell(n)
 		handleErr("ipfs shell err: ", err)
 	case "get":
-		if len(flag.Args()) < 3 {
+		if len(args) < 3 {
 			fmt.Println("iptb get [attr] [node]")
 			os.Exit(1)
 		}
-		attr := flag.Arg(1)
-		num, err := strconv.Atoi(flag.Arg(2))
+		attr := args[1]
+		num, err := strconv.Atoi(args[2])
 		handleErr("error parsing node number: ", err)
 
 		val, err := GetAttr(attr, num)
 		handleErr("error getting attribute: ", err)
 		fmt.Println(val)
 	default:
-		flag.Usage()
+		kingpin.Usage()
+		fmt.Println(helptext)
 		os.Exit(1)
 	}
 }
