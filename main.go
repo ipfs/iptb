@@ -76,10 +76,16 @@ type initCfg struct {
 }
 
 func (c *initCfg) swarmAddrForPeer(i int) string {
+	if c.PortStart == 0 {
+		return "/ip4/0.0.0.0/tcp/0"
+	}
 	return fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", c.PortStart+i)
 }
 
 func (c *initCfg) apiAddrForPeer(i int) string {
+	if c.PortStart == 0 {
+		return "/ip4/127.0.0.1/tcp/0"
+	}
 	return fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", c.PortStart+1000+i)
 }
 
@@ -208,32 +214,37 @@ func IpfsPidOf(n int) (int, error) {
 	return strconv.Atoi(string(b))
 }
 
-func IpfsKill() error {
+func KillNode(i int) error {
+	pid, err := IpfsPidOf(i)
+	if err != nil {
+		return fmt.Errorf("error killing daemon %d: %s", i, err)
+	}
+
+	p, err := os.FindProcess(pid)
+	if err != nil {
+		return fmt.Errorf("error killing daemon %d: %s", i, err)
+	}
+	err = p.Kill()
+	if err != nil {
+		return fmt.Errorf("error killing daemon %d: %s\n", i, err)
+	}
+
+	p.Wait()
+
+	err = os.Remove(path.Join(IpfsDirN(i), "daemon.pid"))
+	if err != nil {
+		return fmt.Errorf("error removing pid file for daemon %d: %s\n", i, err)
+	}
+
+	return nil
+}
+
+func IpfsKillAll() error {
 	n := GetNumNodes()
 	for i := 0; i < n; i++ {
-		pid, err := IpfsPidOf(i)
+		err := KillNode(i)
 		if err != nil {
-			fmt.Printf("error killing daemon %d: %s\n", i, err)
-			continue
-		}
-
-		p, err := os.FindProcess(pid)
-		if err != nil {
-			fmt.Printf("error killing daemon %d: %s\n", i, err)
-			continue
-		}
-		err = p.Kill()
-		if err != nil {
-			fmt.Printf("error killing daemon %d: %s\n", i, err)
-			continue
-		}
-
-		p.Wait()
-
-		err = os.Remove(path.Join(IpfsDirN(i), "daemon.pid"))
-		if err != nil {
-			fmt.Printf("error removing pid file for daemon %d: %s\n", i, err)
-			continue
+			return err
 		}
 	}
 	return nil
@@ -277,29 +288,27 @@ func IpfsStart(waitall bool) error {
 
 		// Make sure node 0 is up before starting the rest so
 		// bootstrapping works properly
-		if i == 0 || waitall {
-			cfg, err := serial.Load(path.Join(IpfsDirN(i), "config"))
-			if err != nil {
-				return err
-			}
+		cfg, err := serial.Load(path.Join(IpfsDirN(i), "config"))
+		if err != nil {
+			return err
+		}
 
-			maddr := ma.StringCast(cfg.Addresses.API)
-			_, addr, err := manet.DialArgs(maddr)
-			if err != nil {
-				return err
-			}
+		maddr := ma.StringCast(cfg.Addresses.API)
+		_, addr, err := manet.DialArgs(maddr)
+		if err != nil {
+			return err
+		}
 
-			addrs = append(addrs, addr)
+		addrs = append(addrs, addr)
 
-			err = waitOnAPI(cfg.Identity.PeerID, addr)
-			if err != nil {
-				return err
-			}
+		err = waitOnAPI(cfg.Identity.PeerID, i)
+		if err != nil {
+			return err
 		}
 	}
 	if waitall {
 		for i := 0; i < n; i++ {
-			err := waitOnSwarmPeers(addrs[i])
+			err := waitOnSwarmPeers(i)
 			if err != nil {
 				return err
 			}
@@ -309,32 +318,73 @@ func IpfsStart(waitall bool) error {
 	return nil
 }
 
-func waitOnAPI(peerid, addr string) error {
+func waitOnAPI(peerid string, nnum int) error {
 	for i := 0; i < 50; i++ {
-		resp, err := http.Get("http://" + addr + "/api/v0/id")
+		err := tryAPICheck(peerid, nnum)
 		if err == nil {
-			out := make(map[string]interface{})
-			err := json.NewDecoder(resp.Body).Decode(&out)
-			if err != nil {
-				return fmt.Errorf("liveness check failed: %s", err)
-			}
-			id, ok := out["ID"]
-			if !ok {
-				return fmt.Errorf("liveness check failed: ID field not present in output")
-			}
-			idstr := id.(string)
-			if idstr != peerid {
-				return fmt.Errorf("liveness check failed: unexpected peer at endpoint")
-			}
-
 			return nil
 		}
 		time.Sleep(time.Millisecond * 200)
 	}
-	return fmt.Errorf("node at %s failed to come online in given time period", addr)
+	return fmt.Errorf("node %d failed to come online in given time period", nnum)
 }
 
-func waitOnSwarmPeers(addr string) error {
+func getNodesAPIAddr(nnum int) (string, error) {
+	addrb, err := ioutil.ReadFile(path.Join(IpfsDirN(nnum), "api"))
+	if err != nil {
+		return "", err
+	}
+
+	maddr, err := ma.NewMultiaddr(string(addrb))
+	if err != nil {
+		fmt.Println("error parsing multiaddr: ", err)
+		return "", err
+	}
+
+	_, addr, err := manet.DialArgs(maddr)
+	if err != nil {
+		fmt.Println("error on multiaddr dialargs: ", err)
+		return "", err
+	}
+	return addr, nil
+}
+
+func tryAPICheck(peerid string, nnum int) error {
+	addr, err := getNodesAPIAddr(nnum)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Get("http://" + addr + "/api/v0/id")
+	if err != nil {
+		return err
+	}
+
+	out := make(map[string]interface{})
+	err = json.NewDecoder(resp.Body).Decode(&out)
+	if err != nil {
+		return fmt.Errorf("liveness check failed: %s", err)
+	}
+
+	id, ok := out["ID"]
+	if !ok {
+		return fmt.Errorf("liveness check failed: ID field not present in output")
+	}
+
+	idstr := id.(string)
+	if idstr != peerid {
+		return fmt.Errorf("liveness check failed: unexpected peer at endpoint")
+	}
+
+	return nil
+}
+
+func waitOnSwarmPeers(nnum int) error {
+	addr, err := getNodesAPIAddr(nnum)
+	if err != nil {
+		return err
+	}
+
 	for i := 0; i < 50; i++ {
 		resp, err := http.Get("http://" + addr + "/api/v0/swarm/peers")
 		if err == nil {
@@ -388,6 +438,27 @@ func IpfsShell(n int) error {
 	nenvs = append(os.Environ(), nenvs...)
 
 	return syscall.Exec(shell, []string{shell}, nenvs)
+}
+
+func ConnectNodes(from, to int) error {
+	cmd := exec.Command("ipfs", "id", "-f", "<addrs>")
+	cmd.Env = []string{"IPFS_PATH=" + IpfsDirN(to)}
+	out, err := cmd.Output()
+	if err != nil {
+		fmt.Println("ERR: ", string(out))
+		return err
+	}
+	addr := strings.Split(string(out), "\n")[0]
+	fmt.Println("ADDR: ", addr)
+
+	connectcmd := exec.Command("ipfs", "swarm", "connect", addr)
+	connectcmd.Env = []string{"IPFS_PATH=" + IpfsDirN(from)}
+	out, err = connectcmd.CombinedOutput()
+	if err != nil {
+		fmt.Println(string(out))
+		return err
+	}
+	return nil
 }
 
 func GetAttr(attr string, node int) (string, error) {
@@ -446,7 +517,7 @@ func handleErr(s string, err error) {
 func main() {
 	cfg := new(initCfg)
 	kingpin.Flag("n", "number of ipfs nodes to initialize").Short('n').IntVar(&cfg.Count)
-	kingpin.Flag("p", "port to start allocations from").Default("4002").IntVar(&cfg.PortStart)
+	kingpin.Flag("port", "port to start allocations from").Default("4002").Short('p').IntVar(&cfg.PortStart)
 	kingpin.Flag("f", "force initialization (overwrite existing configs)").BoolVar(&cfg.Force)
 	kingpin.Flag("mdns", "turn on mdns for nodes").BoolVar(&cfg.Mdns)
 	kingpin.Flag("bootstrap", "select bootstrapping style for cluster").Default("star").StringVar(&cfg.Bootstrap)
@@ -469,10 +540,22 @@ func main() {
 		err := IpfsStart(*wait)
 		handleErr("ipfs start err: ", err)
 	case "stop", "kill":
-		err := IpfsKill()
+		if len(args) > 1 {
+			i, err := strconv.Atoi(args[1])
+			if err != nil {
+				fmt.Println("failed to parse node number: ", err)
+				os.Exit(1)
+			}
+			err = KillNode(i)
+			if err != nil {
+				fmt.Println("failed to kill node: ", err)
+			}
+			return
+		}
+		err := IpfsKillAll()
 		handleErr("ipfs kill err: ", err)
 	case "restart":
-		err := IpfsKill()
+		err := IpfsKillAll()
 		handleErr("ipfs kill err: ", err)
 
 		err = IpfsStart(*wait)
@@ -487,6 +570,30 @@ func main() {
 
 		err = IpfsShell(n)
 		handleErr("ipfs shell err: ", err)
+	case "connect":
+		if len(args) < 3 {
+			fmt.Println("iptb connect [node] [node]")
+			os.Exit(1)
+		}
+
+		from, err := strconv.Atoi(args[1])
+		if err != nil {
+			fmt.Printf("failed to parse: %s\n", err)
+			return
+		}
+
+		to, err := strconv.Atoi(args[2])
+		if err != nil {
+			fmt.Printf("failed to parse: %s\n", err)
+			return
+		}
+
+		err = ConnectNodes(from, to)
+		if err != nil {
+			fmt.Printf("failed to connect: %s\n", err)
+			return
+		}
+
 	case "get":
 		if len(args) < 3 {
 			fmt.Println("iptb get [attr] [node]")
