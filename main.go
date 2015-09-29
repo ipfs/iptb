@@ -257,7 +257,7 @@ func IpfsStart(waitall bool) error {
 		dir := IpfsDirN(i)
 		cmd := exec.Command("ipfs", "daemon")
 		cmd.Dir = dir
-		cmd.Env = []string{"IPFS_PATH=" + dir}
+		cmd.Env = append(os.Environ(), "IPFS_PATH="+dir)
 
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
