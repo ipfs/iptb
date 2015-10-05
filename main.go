@@ -461,6 +461,7 @@ func IpfsShell(n int) error {
 }
 
 func ConnectNodes(from, to int) error {
+	fmt.Printf("connecting %d -> %d\n", from, to)
 	cmd := exec.Command("ipfs", "id", "-f", "<addrs>")
 	cmd.Env = []string{"IPFS_PATH=" + IpfsDirN(to)}
 	out, err := cmd.Output()
@@ -469,7 +470,6 @@ func ConnectNodes(from, to int) error {
 		return err
 	}
 	addr := strings.Split(string(out), "\n")[0]
-	fmt.Println("ADDR: ", addr)
 
 	connectcmd := exec.Command("ipfs", "swarm", "connect", addr)
 	connectcmd.Env = []string{"IPFS_PATH=" + IpfsDirN(from)}
@@ -479,6 +479,55 @@ func ConnectNodes(from, to int) error {
 		return err
 	}
 	return nil
+}
+
+func parseRange(s string) ([]int, error) {
+	if strings.HasPrefix(s, "[") && strings.HasSuffix(s, "]") {
+		ranges := strings.Split(s[1:len(s)-1], ",")
+		var out []int
+		for _, r := range ranges {
+			rng, err := expandDashRange(r)
+			if err != nil {
+				return nil, err
+			}
+
+			out = append(out, rng...)
+		}
+		return out, nil
+	} else {
+		i, err := strconv.Atoi(s)
+		if err != nil {
+			return nil, err
+		}
+
+		return []int{i}, nil
+	}
+}
+
+func expandDashRange(s string) ([]int, error) {
+	parts := strings.Split(s, "-")
+	if len(parts) == 0 {
+		i, err := strconv.Atoi(s)
+		if err != nil {
+			return nil, err
+		}
+		return []int{i}, nil
+	}
+	low, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return nil, err
+	}
+
+	hi, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return nil, err
+	}
+
+	var out []int
+	for i := low; i <= hi; i++ {
+		out = append(out, i)
+	}
+	return out, nil
 }
 
 func GetAttr(attr string, node int) (string, error) {
@@ -597,22 +646,26 @@ func main() {
 			os.Exit(1)
 		}
 
-		from, err := strconv.Atoi(args[1])
+		from, err := parseRange(args[1])
 		if err != nil {
 			fmt.Printf("failed to parse: %s\n", err)
 			return
 		}
 
-		to, err := strconv.Atoi(args[2])
+		to, err := parseRange(args[2])
 		if err != nil {
 			fmt.Printf("failed to parse: %s\n", err)
 			return
 		}
 
-		err = ConnectNodes(from, to)
-		if err != nil {
-			fmt.Printf("failed to connect: %s\n", err)
-			return
+		for _, f := range from {
+			for _, t := range to {
+				err = ConnectNodes(f, t)
+				if err != nil {
+					fmt.Printf("failed to connect: %s\n", err)
+					return
+				}
+			}
 		}
 
 	case "get":
