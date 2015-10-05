@@ -587,7 +587,7 @@ func main() {
 	cfg := new(initCfg)
 	kingpin.Flag("n", "number of ipfs nodes to initialize").Short('n').IntVar(&cfg.Count)
 	kingpin.Flag("port", "port to start allocations from").Default("4002").Short('p').IntVar(&cfg.PortStart)
-	kingpin.Flag("f", "force initialization (overwrite existing configs)").BoolVar(&cfg.Force)
+	kingpin.Flag("force", "force initialization (overwrite existing configs)").Short('f').BoolVar(&cfg.Force)
 	kingpin.Flag("mdns", "turn on mdns for nodes").BoolVar(&cfg.Mdns)
 	kingpin.Flag("bootstrap", "select bootstrapping style for cluster").Default("star").StringVar(&cfg.Bootstrap)
 	kingpin.Flag("utp", "use utp for addresses").BoolVar(&cfg.Utp)
