@@ -73,13 +73,19 @@ type initCfg struct {
 	Bootstrap string
 	PortStart int
 	Mdns      bool
+	Utp       bool
 }
 
 func (c *initCfg) swarmAddrForPeer(i int) string {
-	if c.PortStart == 0 {
-		return "/ip4/0.0.0.0/tcp/0"
+	str := "/ip4/0.0.0.0/tcp/%d"
+	if c.Utp {
+		str = "/ip4/0.0.0.0/udp/%d/utp"
 	}
-	return fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", c.PortStart+i)
+
+	if c.PortStart == 0 {
+		return fmt.Sprintf(str, 0)
+	}
+	return fmt.Sprintf(str, c.PortStart+i)
 }
 
 func (c *initCfg) apiAddrForPeer(i int) string {
@@ -250,6 +256,20 @@ func IpfsKillAll() error {
 	return nil
 }
 
+func envForDaemon(n int) []string {
+	envs := os.Environ()
+	npath := "IPFS_PATH=" + IpfsDirN(n)
+	for i, e := range envs {
+		p := strings.Split(e, "=")
+		if p[0] == "IPFS_PATH" {
+			envs[i] = npath
+			return envs
+		}
+	}
+
+	return append(envs, npath)
+}
+
 func IpfsStart(waitall bool) error {
 	var addrs []string
 	n := GetNumNodes()
@@ -257,7 +277,7 @@ func IpfsStart(waitall bool) error {
 		dir := IpfsDirN(i)
 		cmd := exec.Command("ipfs", "daemon")
 		cmd.Dir = dir
-		cmd.Env = append(os.Environ(), "IPFS_PATH="+dir)
+		cmd.Env = envForDaemon(i)
 
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
@@ -521,6 +541,7 @@ func main() {
 	kingpin.Flag("f", "force initialization (overwrite existing configs)").BoolVar(&cfg.Force)
 	kingpin.Flag("mdns", "turn on mdns for nodes").BoolVar(&cfg.Mdns)
 	kingpin.Flag("bootstrap", "select bootstrapping style for cluster").Default("star").StringVar(&cfg.Bootstrap)
+	kingpin.Flag("utp", "use utp for addresses").BoolVar(&cfg.Utp)
 
 	wait := kingpin.Flag("wait", "wait for nodes to come fully online before exiting").Bool()
 
