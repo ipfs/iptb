@@ -461,6 +461,10 @@ func IpfsShell(n int) error {
 }
 
 func ConnectNodes(from, to int) error {
+	if from == to {
+		// skip connecting to self..
+		return nil
+	}
 	fmt.Printf("connecting %d -> %d\n", from, to)
 	cmd := exec.Command("ipfs", "id", "-f", "<addrs>")
 	cmd.Env = []string{"IPFS_PATH=" + IpfsDirN(to)}
