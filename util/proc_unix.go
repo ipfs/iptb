@@ -1,5 +1,5 @@
 // +build !windows
-package main
+package iptbutil
 
 import (
 	"os/exec"
