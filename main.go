@@ -120,7 +120,15 @@ var initCmd = cli.Command{
 			fmt.Printf("please specify number of nodes: '%s init -n 10'\n", os.Args[0])
 			os.Exit(1)
 		}
-		cfg := &util.InitCfg{}
+		cfg := &util.InitCfg{
+			Bootstrap: c.String("bootstrap"),
+			Force:     c.Bool("f"),
+			Count:     c.Int("count"),
+			Mdns:      c.Bool("mdns"),
+			Utp:       c.Bool("utp"),
+			PortStart: c.Int("port"),
+		}
+
 		err := util.IpfsInit(cfg)
 		handleErr("ipfs init err: ", err)
 	},
