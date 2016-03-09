@@ -60,6 +60,7 @@ type InitCfg struct {
 	PortStart int
 	Mdns      bool
 	Utp       bool
+	Override  string
 }
 
 func (c *InitCfg) swarmAddrForPeer(i int) string {
@@ -95,6 +96,7 @@ func YesNoPrompt(prompt string) bool {
 		fmt.Println("Please press either 'y' or 'n'")
 	}
 }
+
 func IpfsInit(cfg *InitCfg) error {
 	p := IpfsDirN(0)
 	if _, err := os.Stat(p); !os.IsNotExist(err) {
@@ -145,7 +147,52 @@ func IpfsInit(cfg *InitCfg) error {
 		return fmt.Errorf("unrecognized bootstrapping option: %s", cfg.Bootstrap)
 	}
 
+	/*
+		if cfg.Override != "" {
+			err := ApplyConfigOverride(cfg)
+			if err != nil {
+				return err
+			}
+		}
+	*/
+
 	return nil
+}
+
+func ApplyConfigOverride(cfg *InitCfg) error {
+	fir, err := os.Open(cfg.Override)
+	if err != nil {
+		return err
+	}
+	defer fir.Close()
+
+	var configs map[string]interface{}
+	err = json.NewDecoder(fir).Decode(&configs)
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < cfg.Count; i++ {
+		err := applyOverrideToNode(configs, i)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func applyOverrideToNode(ovr map[string]interface{}, node int) error {
+	for k, v := range ovr {
+		_ = k
+		switch v.(type) {
+		case map[string]interface{}:
+		default:
+		}
+
+	}
+
+	panic("not implemented")
 }
 
 func starBootstrap(icfg *InitCfg) error {
@@ -349,7 +396,7 @@ func waitOnAPI(peerid string, nnum int) error {
 	return fmt.Errorf("node %d failed to come online in given time period", nnum)
 }
 
-func getNodesAPIAddr(nnum int) (string, error) {
+func GetNodesAPIAddr(nnum int) (string, error) {
 	addrb, err := ioutil.ReadFile(path.Join(IpfsDirN(nnum), "api"))
 	if err != nil {
 		return "", err
@@ -370,7 +417,7 @@ func getNodesAPIAddr(nnum int) (string, error) {
 }
 
 func tryAPICheck(peerid string, nnum int) error {
-	addr, err := getNodesAPIAddr(nnum)
+	addr, err := GetNodesAPIAddr(nnum)
 	if err != nil {
 		return err
 	}
@@ -400,7 +447,7 @@ func tryAPICheck(peerid string, nnum int) error {
 }
 
 func waitOnSwarmPeers(nnum int) error {
-	addr, err := getNodesAPIAddr(nnum)
+	addr, err := GetNodesAPIAddr(nnum)
 	if err != nil {
 		return err
 	}

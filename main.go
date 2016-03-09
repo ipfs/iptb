@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -76,6 +78,7 @@ func main() {
 		shellCmd,
 		getCmd,
 		connectCmd,
+		dumpStacksCmd,
 	}
 
 	err := app.Run(os.Args)
@@ -114,6 +117,10 @@ var initCmd = cli.Command{
 			Name:  "utp",
 			Usage: "use utp for addresses",
 		},
+		cli.StringFlag{
+			Name:  "cfg",
+			Usage: "override default config with values from the given file",
+		},
 	},
 	Action: func(c *cli.Context) {
 		if c.Int("count") == 0 {
@@ -127,6 +134,7 @@ var initCmd = cli.Command{
 			Mdns:      c.Bool("mdns"),
 			Utp:       c.Bool("utp"),
 			PortStart: c.Int("port"),
+			Override:  c.String("cfg"),
 		}
 
 		err := util.IpfsInit(cfg)
@@ -224,7 +232,7 @@ var connectCmd = cli.Command{
 			return
 		}
 
-		to, err := parseRange(c.Args()[2])
+		to, err := parseRange(c.Args()[1])
 		if err != nil {
 			fmt.Printf("failed to parse: %s\n", err)
 			return
@@ -257,5 +265,28 @@ var getCmd = cli.Command{
 		val, err := util.GetAttr(attr, num)
 		handleErr("error getting attribute: ", err)
 		fmt.Println(val)
+	},
+}
+
+var dumpStacksCmd = cli.Command{
+	Name:  "dump-stack",
+	Usage: "get a stack dump from the given daemon",
+	Action: func(c *cli.Context) {
+		if len(c.Args()) < 1 {
+			fmt.Println("iptb dump-stack [node]")
+			os.Exit(1)
+		}
+
+		num, err := strconv.Atoi(c.Args()[0])
+		handleErr("error parsing node number: ", err)
+
+		addr, err := util.GetNodesAPIAddr(num)
+		handleErr("failed to get api addr: ", err)
+
+		resp, err := http.Get("http://" + addr + "/debug/pprof/goroutine?debug=2")
+		handleErr("GET stack dump failed: ", err)
+		defer resp.Body.Close()
+
+		io.Copy(os.Stdout, resp.Body)
 	},
 }
