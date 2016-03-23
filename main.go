@@ -158,8 +158,9 @@ var startCmd = cli.Command{
 }
 
 var killCmd = cli.Command{
-	Name:  "kill",
-	Usage: "kill a given node (or all nodes if none specified)",
+	Name:    "kill",
+	Usage:   "kill a given node (or all nodes if none specified)",
+	Aliases: []string{"stop"},
 	Action: func(c *cli.Context) {
 		if c.Args().Present() {
 			i, err := strconv.Atoi(c.Args()[0])
