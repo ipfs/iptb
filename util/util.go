@@ -602,6 +602,8 @@ func GetAttr(attr string, node int) (string, error) {
 	switch attr {
 	case "id":
 		return GetPeerID(node)
+	case "path":
+		return IpfsDirN(node)
 	default:
 		return "", errors.New("unrecognized attribute")
 	}
