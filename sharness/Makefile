@@ -10,19 +10,20 @@ LIBDIR = lib
 SHARNESSDIR = sharness
 AGGREGATE = $(LIBDIR)/$(SHARNESSDIR)/aggregate-results.sh
 
+# Binaries generated
+BINS = bin/iptb
 
-# Add below the binaries that this project generates or needs.
-# For example:
-# BINS = bin/ipfs
-BINS =
+# Source files location
+IPTB_SRC = ../
+
+# User might want to override those on the command line
+GOFLAGS =
 
 all: aggregate
 
 clean: clean-test-results
 	@echo "*** $@ ***"
-	# Clean binaries below.
-	# For example:
-	# -rm -rf bin/ipfs
+	-rm -rf $(BINS)
 
 clean-test-results:
 	@echo "*** $@ ***"
@@ -36,32 +37,24 @@ aggregate: clean-test-results $(T)
 	@echo "*** $@ ***"
 	ls test-results/t*-*.sh.*.counts | $(AGGREGATE)
 
-# Add below some needed dependencies.
-# For example:
-# deps: sharness $(BINS) curl
+# Needed dependencies.
 deps: sharness $(BINS)
 
 sharness:
 	@echo "*** checking $@ ***"
 	lib/install-sharness.sh
 
-# Add below other targets like:
-# - the targets needed to build binaries,
-# - targets using special compile flags,
-# - targets to check or install dependencies.
-#
-# For example:
-#
-# GOFLAGS =
-#
-# bin/%: FORCE
-# 	cd .. && make GOFLAGS=$(GOFLAGS) $@
-#
-# race:
-# 	make GOFLAGS=-race all
-#
-# curl:
-#	@which curl >/dev/null || (echo "Please install curl!" && false)
+find_go_files = $(shell find $(1) -name "*.go")
+
+bin/iptb: $(call find_go_files, $(IPTB_SRC)) BUILD-OPTIONS
+	@echo "*** installing $@ ***"
+	go build $(GOFLAGS) -o $@ $(IPTB_SRC)
+
+race:
+	make GOFLAGS=-race all
+
+BUILD-OPTIONS: FORCE
+	@bin/checkflags '$@' '$(GOFLAGS)' '*** new Go flags ***'
 
 .PHONY: all clean clean-test-results $(T) aggregate deps sharness FORCE
 
