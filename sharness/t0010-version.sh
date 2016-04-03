@@ -2,7 +2,7 @@
 
 test_description="iptb --version"
 
-. ./lib/sharness/sharness.sh
+. lib/test-lib.sh
 
 test_expect_success "ipfs-update binary is here" '
 	test -f ../bin/iptb
