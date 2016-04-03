@@ -27,7 +27,11 @@ var setupOpt = func(cmd *exec.Cmd) {}
 // GetNumNodes returns the number of testbed nodes configured in the testbed directory
 func GetNumNodes() int {
 	for i := 0; i < 2000; i++ {
-		_, err := os.Stat(IpfsDirN(i))
+		dir, err := IpfsDirN(i)
+		if err != nil {
+			return i
+		}
+		_, err = os.Stat(dir)
 		if os.IsNotExist(err) {
 			return i
 		}
@@ -35,22 +39,26 @@ func GetNumNodes() int {
 	panic("i dont know whats going on")
 }
 
-func TestBedDir() string {
+func TestBedDir() (string, error) {
 	tbd := os.Getenv("IPTB_ROOT")
 	if len(tbd) != 0 {
-		return tbd
+		return tbd, nil
 	}
 
 	home := os.Getenv("HOME")
 	if len(home) == 0 {
-		panic("could not find home")
+		return "", fmt.Errorf("environment variable HOME is not set")
 	}
 
-	return path.Join(home, "testbed")
+	return path.Join(home, "testbed"), nil
 }
 
-func IpfsDirN(n int) string {
-	return path.Join(TestBedDir(), fmt.Sprint(n))
+func IpfsDirN(n int) (string, error) {
+	tbd, err := TestBedDir()
+	if err != nil {
+		return "", err
+	}
+	return path.Join(tbd, fmt.Sprint(n)), nil
 }
 
 type InitCfg struct {
@@ -98,12 +106,16 @@ func YesNoPrompt(prompt string) bool {
 }
 
 func IpfsInit(cfg *InitCfg) error {
-	p := IpfsDirN(0)
-	if _, err := os.Stat(p); !os.IsNotExist(err) {
+	dir, err := IpfsDirN(0)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		if !cfg.Force && !YesNoPrompt("testbed nodes already exist, overwrite? [y/n]") {
 			return nil
 		}
-		err := os.RemoveAll(TestBedDir())
+		tbd, err := TestBedDir()
+		err = os.RemoveAll(tbd)
 		if err != nil {
 			return err
 		}
@@ -113,8 +125,12 @@ func IpfsInit(cfg *InitCfg) error {
 		wait.Add(1)
 		go func(v int) {
 			defer wait.Done()
-			dir := IpfsDirN(v)
-			err := os.MkdirAll(dir, 0777)
+			dir, err := IpfsDirN(v)
+			if err != nil {
+				log.Println("ERROR: ", err)
+				return
+			}
+			err = os.MkdirAll(dir, 0777)
 			if err != nil {
 				log.Println("ERROR: ", err)
 				return
@@ -197,7 +213,12 @@ func applyOverrideToNode(ovr map[string]interface{}, node int) error {
 
 func starBootstrap(icfg *InitCfg) error {
 	// '0' node is the bootstrap node
-	cfgpath := path.Join(IpfsDirN(0), "config")
+	dir, err := IpfsDirN(0)
+	if err != nil {
+		return err
+	}
+
+	cfgpath := path.Join(dir, "config")
 	bcfg, err := serial.Load(cfgpath)
 	if err != nil {
 		return err
@@ -213,7 +234,11 @@ func starBootstrap(icfg *InitCfg) error {
 	}
 
 	for i := 1; i < icfg.Count; i++ {
-		cfgpath := path.Join(IpfsDirN(i), "config")
+		dir, err := IpfsDirN(i)
+		if err != nil {
+			return err
+		}
+		cfgpath := path.Join(dir, "config")
 		cfg, err := serial.Load(cfgpath)
 		if err != nil {
 			return err
@@ -238,7 +263,11 @@ func starBootstrap(icfg *InitCfg) error {
 
 func clearBootstrapping(icfg *InitCfg) error {
 	for i := 0; i < icfg.Count; i++ {
-		cfgpath := path.Join(IpfsDirN(i), "config")
+		dir, err := IpfsDirN(i)
+		if err != nil {
+			return err
+		}
+		cfgpath := path.Join(dir, "config")
 		cfg, err := serial.Load(cfgpath)
 		if err != nil {
 			return err
@@ -258,7 +287,10 @@ func clearBootstrapping(icfg *InitCfg) error {
 }
 
 func IpfsPidOf(n int) (int, error) {
-	dir := IpfsDirN(n)
+	dir, err := IpfsDirN(n)
+	if err != nil {
+		return -1, err
+	}
 	b, err := ioutil.ReadFile(path.Join(dir, "daemon.pid"))
 	if err != nil {
 		return -1, err
@@ -284,7 +316,11 @@ func KillNode(i int) error {
 
 	p.Wait()
 
-	err = os.Remove(path.Join(IpfsDirN(i), "daemon.pid"))
+	dir, err := IpfsDirN(i)
+	if err != nil {
+		return err
+	}
+	err = os.Remove(path.Join(dir, "daemon.pid"))
 	if err != nil {
 		return fmt.Errorf("error removing pid file for daemon %d: %s\n", i, err)
 	}
@@ -303,28 +339,38 @@ func IpfsKillAll() error {
 	return nil
 }
 
-func envForDaemon(n int) []string {
+func envForDaemon(n int) ([]string, error) {
 	envs := os.Environ()
-	npath := "IPFS_PATH=" + IpfsDirN(n)
+	dir, err := IpfsDirN(n)
+	if err != nil {
+		return envs, err
+	}
+	npath := "IPFS_PATH=" + dir
 	for i, e := range envs {
 		p := strings.Split(e, "=")
 		if p[0] == "IPFS_PATH" {
 			envs[i] = npath
-			return envs
+			return envs, nil
 		}
 	}
 
-	return append(envs, npath)
+	return append(envs, npath), nil
 }
 
 func IpfsStart(waitall bool) error {
 	var addrs []string
 	n := GetNumNodes()
 	for i := 0; i < n; i++ {
-		dir := IpfsDirN(i)
+		dir, err := IpfsDirN(i)
+		if err != nil {
+			return err
+		}
 		cmd := exec.Command("ipfs", "daemon")
 		cmd.Dir = dir
-		cmd.Env = envForDaemon(i)
+		cmd.Env, err = envForDaemon(i)
+		if err != nil {
+			return err
+		}
 
 		setupOpt(cmd)
 
@@ -355,7 +401,7 @@ func IpfsStart(waitall bool) error {
 
 		// Make sure node 0 is up before starting the rest so
 		// bootstrapping works properly
-		cfg, err := serial.Load(path.Join(IpfsDirN(i), "config"))
+		cfg, err := serial.Load(path.Join(dir, "config"))
 		if err != nil {
 			return err
 		}
@@ -397,7 +443,12 @@ func waitOnAPI(peerid string, nnum int) error {
 }
 
 func GetNodesAPIAddr(nnum int) (string, error) {
-	addrb, err := ioutil.ReadFile(path.Join(IpfsDirN(nnum), "api"))
+	dir, err := IpfsDirN(nnum)
+	if err != nil {
+		return "", err
+	}
+
+	addrb, err := ioutil.ReadFile(path.Join(dir, "api"))
 	if err != nil {
 		return "", err
 	}
@@ -476,7 +527,11 @@ func waitOnSwarmPeers(nnum int) error {
 
 // GetPeerID reads the config of node 'n' and returns its peer ID
 func GetPeerID(n int) (string, error) {
-	cfg, err := serial.Load(path.Join(IpfsDirN(n), "config"))
+	dir, err := IpfsDirN(n)
+	if err != nil {
+		return "", err
+	}
+	cfg, err := serial.Load(path.Join(dir, "config"))
 	if err != nil {
 		return "", err
 	}
@@ -491,7 +546,10 @@ func IpfsShell(n int) error {
 		return fmt.Errorf("couldnt find shell!")
 	}
 
-	dir := IpfsDirN(n)
+	dir, err := IpfsDirN(n)
+	if err != nil {
+		return err
+	}
 	nenvs := []string{"IPFS_PATH=" + dir}
 
 	nnodes := GetNumNodes()
@@ -512,9 +570,13 @@ func ConnectNodes(from, to int) error {
 		// skip connecting to self..
 		return nil
 	}
+	to_dir, err := IpfsDirN(to)
+	if err != nil {
+		return err
+	}
 	fmt.Printf("connecting %d -> %d\n", from, to)
 	cmd := exec.Command("ipfs", "id", "-f", "<addrs>")
-	cmd.Env = []string{"IPFS_PATH=" + IpfsDirN(to)}
+	cmd.Env = []string{"IPFS_PATH=" + to_dir}
 	out, err := cmd.Output()
 	if err != nil {
 		fmt.Println("ERR: ", string(out))
@@ -522,8 +584,12 @@ func ConnectNodes(from, to int) error {
 	}
 	addr := strings.Split(string(out), "\n")[0]
 
+	from_dir, err := IpfsDirN(from)
+	if err != nil {
+		return err
+	}
 	connectcmd := exec.Command("ipfs", "swarm", "connect", addr)
-	connectcmd.Env = []string{"IPFS_PATH=" + IpfsDirN(from)}
+	connectcmd.Env = []string{"IPFS_PATH=" + from_dir}
 	out, err = connectcmd.CombinedOutput()
 	if err != nil {
 		fmt.Println(string(out))
