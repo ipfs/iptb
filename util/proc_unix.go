@@ -1,4 +1,5 @@
 // +build !windows
+
 package iptbutil
 
 import (
@@ -6,8 +7,6 @@ import (
 	"syscall"
 )
 
-func init() {
-	setupOpt = func(cmd *exec.Cmd) {
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	}
+func setupOpt(cmd *exec.Cmd) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 }

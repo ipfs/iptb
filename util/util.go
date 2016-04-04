@@ -22,8 +22,6 @@ import (
 	ma "github.com/jbenet/go-multiaddr-net/Godeps/_workspace/src/github.com/jbenet/go-multiaddr"
 )
 
-var setupOpt = func(cmd *exec.Cmd) {}
-
 // GetNumNodes returns the number of testbed nodes configured in the testbed directory
 func GetNumNodes() int {
 	for i := 0; i < 2000; i++ {
