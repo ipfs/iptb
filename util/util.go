@@ -18,8 +18,8 @@ import (
 
 	serial "github.com/ipfs/go-ipfs/repo/fsrepo/serialize"
 
+	ma "github.com/jbenet/go-multiaddr"
 	manet "github.com/jbenet/go-multiaddr-net"
-	ma "github.com/jbenet/go-multiaddr-net/Godeps/_workspace/src/github.com/jbenet/go-multiaddr"
 )
 
 // GetNumNodes returns the number of testbed nodes configured in the testbed directory
@@ -596,12 +596,52 @@ func ConnectNodes(from, to int) error {
 	return nil
 }
 
+type BW struct {
+	TotalIn  int
+	TotalOut int
+}
+
+func GetBW(node int) (*BW, error) {
+	addr, err := GetNodesAPIAddr(node)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.Get("http://" + addr + "/api/v0/stats/bw")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var bw BW
+	err = json.NewDecoder(resp.Body).Decode(&bw)
+	if err != nil {
+		return nil, err
+	}
+
+	return &bw, nil
+}
+
 func GetAttr(attr string, node int) (string, error) {
 	switch attr {
 	case "id":
 		return GetPeerID(node)
 	case "path":
 		return IpfsDirN(node)
+	case "bw_in":
+		bw, err := GetBW(node)
+		if err != nil {
+			return "", err
+		}
+
+		return fmt.Sprint(bw.TotalIn), nil
+	case "bw_out":
+		bw, err := GetBW(node)
+		if err != nil {
+			return "", err
+		}
+
+		return fmt.Sprint(bw.TotalOut), nil
 	default:
 		return "", errors.New("unrecognized attribute")
 	}
