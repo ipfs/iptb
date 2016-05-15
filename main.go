@@ -255,9 +255,19 @@ var connectCmd = cli.Command{
 var getCmd = cli.Command{
 	Name:  "get",
 	Usage: "get an attribute of the given node",
+	Description: `Given an attribute name and a node number, prints the value of the attribute for the given node.
+
+You can get the list of valid attributes by passing no arguments.`,
 	Action: func(c *cli.Context) error {
 		if len(c.Args()) < 2 {
 			fmt.Println("iptb get [attr] [node]")
+			fmt.Println("Valid values of [attr] are:")
+			attr_list := util.GetListOfAttr()
+			for _, a := range attr_list {
+				desc, err := util.GetAttrDescr(a)
+				handleErr("error getting attribute description: ", err)
+				fmt.Printf("\t%s: %s\n", a, desc)
+			}
 			os.Exit(1)
 		}
 		attr := c.Args().First()
