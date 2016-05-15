@@ -1,0 +1,29 @@
+{
+  "author": "whyrusleeping",
+  "bugs": {
+    "url": "https://github.com/whyrusleeping/iptb"
+  },
+  "gx": {
+    "dvcsimport": "github.com/whyrusleeping/iptb"
+  },
+  "gxDependencies": [
+    {
+      "author": "whyrusleeping",
+      "hash": "QmYzDkkgAEmrcNzFCiYo6L1dTX4EAG1gZkbtdbd9trL4vd",
+      "name": "go-multiaddr",
+      "version": "0.0.0"
+    },
+    {
+      "author": "jbenet",
+      "hash": "QmUBa4w6CbHJUMeGJPDiMEDWsM93xToK1fTnFXnrC8Hksw",
+      "name": "go-multiaddr-net",
+      "version": "1.0.1"
+    }
+  ],
+  "gxVersion": "0.6.0",
+  "issues_url": "",
+  "language": "go",
+  "license": "",
+  "name": "iptb",
+  "version": "0.0.0"
+}
