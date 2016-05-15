@@ -646,3 +646,22 @@ func GetAttr(attr string, node int) (string, error) {
 		return "", errors.New("unrecognized attribute")
 	}
 }
+
+func GetListOfAttr() []string {
+	return []string{"id", "path", "bw_in", "bw_out"}
+}
+
+func GetAttrDescr(attr string) (string, error) {
+	switch attr {
+	case "id":
+		return "node ID", nil
+	case "path":
+		return "node IPFS_PATH", nil
+	case "bw_in":
+		return "node input bandwidth", nil
+	case "bw_out":
+		return "node output bandwidth", nil
+	default:
+		return "", errors.New("unrecognized attribute")
+	}
+}
