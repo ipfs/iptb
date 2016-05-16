@@ -122,7 +122,7 @@ var initCmd = cli.Command{
 			Usage: "override default config with values from the given file",
 		},
 	},
-	Action: func(c *cli.Context) {
+	Action: func(c *cli.Context) error {
 		if c.Int("count") == 0 {
 			fmt.Printf("please specify number of nodes: '%s init -n 10'\n", os.Args[0])
 			os.Exit(1)
@@ -139,6 +139,7 @@ var initCmd = cli.Command{
 
 		err := util.IpfsInit(cfg)
 		handleErr("ipfs init err: ", err)
+		return nil
 	},
 }
 
@@ -151,9 +152,8 @@ var startCmd = cli.Command{
 			Usage: "wait for nodes to fully come online before returning",
 		},
 	},
-	Action: func(c *cli.Context) {
-		err := util.IpfsStart(c.Bool("wait"))
-		handleErr("ipfs start err: ", err)
+	Action: func(c *cli.Context) error {
+		return util.IpfsStart(c.Bool("wait"))
 	},
 }
 
@@ -161,7 +161,7 @@ var killCmd = cli.Command{
 	Name:    "kill",
 	Usage:   "kill a given node (or all nodes if none specified)",
 	Aliases: []string{"stop"},
-	Action: func(c *cli.Context) {
+	Action: func(c *cli.Context) error {
 		if c.Args().Present() {
 			i, err := strconv.Atoi(c.Args()[0])
 			if err != nil {
@@ -172,10 +172,11 @@ var killCmd = cli.Command{
 			if err != nil {
 				fmt.Println("failed to kill node: ", err)
 			}
-			return
+			return nil
 		}
 		err := util.IpfsKillAll()
 		handleErr("ipfs kill err: ", err)
+		return nil
 	},
 }
 
@@ -188,12 +189,13 @@ var restartCmd = cli.Command{
 			Usage: "wait for nodes to come online before returning",
 		},
 	},
-	Action: func(c *cli.Context) {
+	Action: func(c *cli.Context) error {
 		err := util.IpfsKillAll()
 		handleErr("ipfs kill err: ", err)
 
 		err = util.IpfsStart(c.Bool("wait"))
 		handleErr("ipfs start err: ", err)
+		return nil
 	},
 }
 
@@ -205,7 +207,7 @@ var shellCmd = cli.Command{
 IPFS_PATH - set to testbed node 'n's IPFS_PATH
 NODE[x] - set to the peer ID of node x
 `,
-	Action: func(c *cli.Context) {
+	Action: func(c *cli.Context) error {
 		if !c.Args().Present() {
 			fmt.Println("please specify which node you want a shell for")
 			os.Exit(1)
@@ -215,13 +217,14 @@ NODE[x] - set to the peer ID of node x
 
 		err = util.IpfsShell(n)
 		handleErr("ipfs shell err: ", err)
+		return nil
 	},
 }
 
 var connectCmd = cli.Command{
 	Name:  "connect",
 	Usage: "connect two nodes together",
-	Action: func(c *cli.Context) {
+	Action: func(c *cli.Context) error {
 		if len(c.Args()) < 2 {
 			fmt.Println("iptb connect [node] [node]")
 			os.Exit(1)
@@ -229,32 +232,30 @@ var connectCmd = cli.Command{
 
 		from, err := parseRange(c.Args()[0])
 		if err != nil {
-			fmt.Printf("failed to parse: %s\n", err)
-			return
+			return fmt.Errorf("failed to parse: %s", err)
 		}
 
 		to, err := parseRange(c.Args()[1])
 		if err != nil {
-			fmt.Printf("failed to parse: %s\n", err)
-			return
+			return fmt.Errorf("failed to parse: %s", err)
 		}
 
 		for _, f := range from {
 			for _, t := range to {
 				err = util.ConnectNodes(f, t)
 				if err != nil {
-					fmt.Printf("failed to connect: %s\n", err)
-					return
+					return fmt.Errorf("failed to connect: %s", err)
 				}
 			}
 		}
+		return nil
 	},
 }
 
 var getCmd = cli.Command{
 	Name:  "get",
 	Usage: "get an attribute of the given node",
-	Action: func(c *cli.Context) {
+	Action: func(c *cli.Context) error {
 		if len(c.Args()) < 2 {
 			fmt.Println("iptb get [attr] [node]")
 			os.Exit(1)
@@ -266,13 +267,14 @@ var getCmd = cli.Command{
 		val, err := util.GetAttr(attr, num)
 		handleErr("error getting attribute: ", err)
 		fmt.Println(val)
+		return nil
 	},
 }
 
 var dumpStacksCmd = cli.Command{
 	Name:  "dump-stack",
 	Usage: "get a stack dump from the given daemon",
-	Action: func(c *cli.Context) {
+	Action: func(c *cli.Context) error {
 		if len(c.Args()) < 1 {
 			fmt.Println("iptb dump-stack [node]")
 			os.Exit(1)
@@ -289,5 +291,6 @@ var dumpStacksCmd = cli.Command{
 		defer resp.Body.Close()
 
 		io.Copy(os.Stdout, resp.Body)
+		return nil
 	},
 }
