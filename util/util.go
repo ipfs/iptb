@@ -622,44 +622,49 @@ func GetBW(node int) (*BW, error) {
 	return &bw, nil
 }
 
+const (
+	attrId    = "id"
+	attrPath  = "path"
+	attrBwIn  = "bw_in"
+	attrBwOut = "bw_out"
+)
+
 func GetAttr(attr string, node int) (string, error) {
 	switch attr {
-	case "id":
+	case attrId:
 		return GetPeerID(node)
-	case "path":
+	case attrPath:
 		return IpfsDirN(node)
-	case "bw_in":
+	case attrBwIn:
 		bw, err := GetBW(node)
 		if err != nil {
 			return "", err
 		}
-
 		return fmt.Sprint(bw.TotalIn), nil
-	case "bw_out":
+	case attrBwOut:
 		bw, err := GetBW(node)
 		if err != nil {
 			return "", err
 		}
-
 		return fmt.Sprint(bw.TotalOut), nil
 	default:
-		return "", errors.New("unrecognized attribute")
+		return "", errors.New("unrecognized attribute: " + attr)
 	}
 }
 
 func GetListOfAttr() []string {
-	return []string{"id", "path", "bw_in", "bw_out"}
+	return []string{attrId, attrPath, attrBwIn, attrBwOut}
 }
 
 func GetAttrDescr(attr string) (string, error) {
 	switch attr {
-	case "id":
+	case attrId:
 		return "node ID", nil
-	case "path":
+	case attrPath:
 		return "node IPFS_PATH", nil
-	case "bw_in":
+	case attrBwIn:
 		return "node input bandwidth", nil
-	case "bw_out":
+	case attrBwOut:
 		return "node output bandwidth", nil
 	default:
 		return "", errors.New("unrecognized attribute")
