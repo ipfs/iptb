@@ -153,7 +153,11 @@ var startCmd = cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
-		return util.IpfsStart(c.Bool("wait"))
+		nodes, err := util.LoadNodes()
+		if err != nil {
+			return err
+		}
+		return util.IpfsStart(nodes, c.Bool("wait"))
 	},
 }
 
@@ -168,13 +172,23 @@ var killCmd = cli.Command{
 				fmt.Println("failed to parse node number: ", err)
 				os.Exit(1)
 			}
-			err = util.KillNode(i)
+			nd, err := util.LoadLocalNodeN(i)
+			if err != nil {
+				return fmt.Errorf("failed to load local node: %s\n", err)
+			}
+
+			err = nd.Kill()
 			if err != nil {
 				fmt.Println("failed to kill node: ", err)
 			}
 			return nil
 		}
-		err := util.IpfsKillAll()
+		nodes, err := util.LoadNodes()
+		if err != nil {
+			return err
+		}
+
+		err = util.IpfsKillAll(nodes)
 		handleErr("ipfs kill err: ", err)
 		return nil
 	},
@@ -190,10 +204,17 @@ var restartCmd = cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
-		err := util.IpfsKillAll()
-		handleErr("ipfs kill err: ", err)
+		nodes, err := util.LoadNodes()
+		if err != nil {
+			return err
+		}
 
-		err = util.IpfsStart(c.Bool("wait"))
+		err = util.IpfsKillAll(nodes)
+		if err != nil {
+			return fmt.Errorf("ipfs kill err: %s", err)
+		}
+
+		err = util.IpfsStart(nodes, c.Bool("wait"))
 		handleErr("ipfs start err: ", err)
 		return nil
 	},
@@ -212,10 +233,17 @@ NODE[x] - set to the peer ID of node x
 			fmt.Println("please specify which node you want a shell for")
 			os.Exit(1)
 		}
-		n, err := strconv.Atoi(c.Args()[0])
-		handleErr("parse err: ", err)
+		i, err := strconv.Atoi(c.Args()[0])
+		if err != nil {
+			return fmt.Errorf("parse err: %s", err)
+		}
 
-		err = util.IpfsShell(n)
+		n, err := util.LoadLocalNodeN(i)
+		if err != nil {
+			return err
+		}
+
+		err = n.Shell()
 		handleErr("ipfs shell err: ", err)
 		return nil
 	},
@@ -230,6 +258,11 @@ var connectCmd = cli.Command{
 			os.Exit(1)
 		}
 
+		nodes, err := util.LoadNodes()
+		if err != nil {
+			return err
+		}
+
 		from, err := parseRange(c.Args()[0])
 		if err != nil {
 			return fmt.Errorf("failed to parse: %s", err)
@@ -242,7 +275,7 @@ var connectCmd = cli.Command{
 
 		for _, f := range from {
 			for _, t := range to {
-				err = util.ConnectNodes(f, t)
+				err = util.ConnectNodes(nodes[f], nodes[t])
 				if err != nil {
 					return fmt.Errorf("failed to connect: %s", err)
 				}
@@ -277,7 +310,12 @@ You can get the list of valid attributes by passing no arguments.`,
 			num, err := strconv.Atoi(c.Args()[1])
 			handleErr("error parsing node number: ", err)
 
-			val, err := util.GetAttr(attr, num)
+			ln, err := util.LoadLocalNodeN(num)
+			if err != nil {
+				return err
+			}
+
+			val, err := ln.GetAttr(attr)
 			handleErr("error getting attribute: ", err)
 			fmt.Println(val)
 		default:
@@ -301,8 +339,15 @@ var dumpStacksCmd = cli.Command{
 		num, err := strconv.Atoi(c.Args()[0])
 		handleErr("error parsing node number: ", err)
 
-		addr, err := util.GetNodesAPIAddr(num)
-		handleErr("failed to get api addr: ", err)
+		ln, err := util.LoadLocalNodeN(num)
+		if err != nil {
+			return err
+		}
+
+		addr, err := ln.APIAddr()
+		if err != nil {
+			return fmt.Errorf("failed to get api addr: %s", err)
+		}
 
 		resp, err := http.Get("http://" + addr + "/debug/pprof/goroutine?debug=2")
 		handleErr("GET stack dump failed: ", err)
