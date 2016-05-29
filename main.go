@@ -121,6 +121,10 @@ var initCmd = cli.Command{
 			Name:  "cfg",
 			Usage: "override default config with values from the given file",
 		},
+		cli.StringFlag{
+			Name:  "type",
+			Usage: "select type of nodes to initialize",
+		},
 	},
 	Action: func(c *cli.Context) error {
 		if c.Int("count") == 0 {
@@ -135,6 +139,7 @@ var initCmd = cli.Command{
 			Utp:       c.Bool("utp"),
 			PortStart: c.Int("port"),
 			Override:  c.String("cfg"),
+			NodeType:  c.String("type"),
 		}
 
 		err := util.IpfsInit(cfg)
@@ -172,7 +177,7 @@ var killCmd = cli.Command{
 				fmt.Println("failed to parse node number: ", err)
 				os.Exit(1)
 			}
-			nd, err := util.LoadLocalNodeN(i)
+			nd, err := util.LoadNodeN(i)
 			if err != nil {
 				return fmt.Errorf("failed to load local node: %s\n", err)
 			}
@@ -238,7 +243,7 @@ NODE[x] - set to the peer ID of node x
 			return fmt.Errorf("parse err: %s", err)
 		}
 
-		n, err := util.LoadLocalNodeN(i)
+		n, err := util.LoadNodeN(i)
 		if err != nil {
 			return err
 		}
@@ -310,7 +315,7 @@ You can get the list of valid attributes by passing no arguments.`,
 			num, err := strconv.Atoi(c.Args()[1])
 			handleErr("error parsing node number: ", err)
 
-			ln, err := util.LoadLocalNodeN(num)
+			ln, err := util.LoadNodeN(num)
 			if err != nil {
 				return err
 			}
@@ -339,7 +344,7 @@ var dumpStacksCmd = cli.Command{
 		num, err := strconv.Atoi(c.Args()[0])
 		handleErr("error parsing node number: ", err)
 
-		ln, err := util.LoadLocalNodeN(num)
+		ln, err := util.LoadNodeN(num)
 		if err != nil {
 			return err
 		}

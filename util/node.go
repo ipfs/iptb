@@ -14,6 +14,8 @@ type IpfsNode interface {
 	Shell() error
 	String() string
 
+	GetAttr(string) (string, error)
+
 	GetConfig() (*config.Config, error)
 	WriteConfig(*config.Config) error
 }

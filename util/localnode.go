@@ -23,6 +23,22 @@ type LocalNode struct {
 	PeerID string
 }
 
+func (n *LocalNode) Init() error {
+	err := os.MkdirAll(n.Dir, 0777)
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command("ipfs", "init", "-b=1024")
+	cmd.Env = append(cmd.Env, "IPFS_PATH="+n.Dir)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s: %s", err, string(out))
+	}
+
+	return nil
+}
+
 func (n *LocalNode) GetPeerID() string {
 	return n.PeerID
 }

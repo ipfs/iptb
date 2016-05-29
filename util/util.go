@@ -5,10 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -16,6 +14,7 @@ import (
 	"time"
 
 	serial "github.com/ipfs/go-ipfs/repo/fsrepo/serialize"
+	"github.com/whyrusleeping/stump"
 )
 
 // GetNumNodes returns the number of testbed nodes configured in the testbed directory
@@ -63,6 +62,7 @@ type InitCfg struct {
 	Mdns      bool
 	Utp       bool
 	Override  string
+	NodeType  string
 }
 
 func (c *InitCfg) swarmAddrForPeer(i int) string {
@@ -78,10 +78,17 @@ func (c *InitCfg) swarmAddrForPeer(i int) string {
 }
 
 func (c *InitCfg) apiAddrForPeer(i int) string {
-	if c.PortStart == 0 {
-		return "/ip4/127.0.0.1/tcp/0"
+	ip := "127.0.0.1"
+	if c.NodeType == "docker" {
+		ip = "0.0.0.0"
 	}
-	return fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", c.PortStart+1000+i)
+
+	var port int
+	if c.PortStart != 0 {
+		port = c.PortStart + 1000 + i
+	}
+
+	return fmt.Sprintf("/ip4/%s/tcp/%d", ip, port)
 }
 
 func YesNoPrompt(prompt string) bool {
@@ -99,20 +106,13 @@ func YesNoPrompt(prompt string) bool {
 	}
 }
 
-func LoadLocalNodeN(n int) (*LocalNode, error) {
-	dir, err := IpfsDirN(n)
-	if err != nil {
-		return nil, err
-	}
-	pid, err := GetPeerID(dir)
+func LoadNodeN(n int) (IpfsNode, error) {
+	specs, err := ReadNodeSpecs()
 	if err != nil {
 		return nil, err
 	}
 
-	return &LocalNode{
-		Dir:    dir,
-		PeerID: pid,
-	}, nil
+	return specs[n].Load()
 }
 
 func LoadNodes() ([]IpfsNode, error) {
@@ -139,7 +139,7 @@ func NodesFromSpecs(specs []*NodeSpec) ([]IpfsNode, error) {
 type NodeSpec struct {
 	Type  string
 	Dir   string
-	Extra interface{}
+	Extra map[string]interface{}
 }
 
 func ReadNodeSpecs() ([]*NodeSpec, error) {
@@ -204,40 +204,73 @@ func (ns *NodeSpec) Load() (IpfsNode, error) {
 		}
 
 		return ln, nil
+	case "docker":
+		imgi, ok := ns.Extra["image"]
+		if !ok {
+			return nil, fmt.Errorf("no 'image' field on docker node spec")
+		}
 
+		img := imgi.(string)
+
+		dn := &DockerNode{
+			ImageName: img,
+			LocalNode: LocalNode{
+				Dir: ns.Dir,
+			},
+		}
+
+		if _, err := os.Stat(filepath.Join(dn.Dir, "config")); err == nil {
+			pid, err := GetPeerID(dn.Dir)
+			if err != nil {
+				return nil, err
+			}
+
+			dn.PeerID = pid
+		}
+
+		didfi := filepath.Join(ns.Dir, "dockerID")
+		if _, err := os.Stat(didfi); err == nil {
+			data, err := ioutil.ReadFile(didfi)
+			if err != nil {
+				return nil, err
+			}
+
+			dn.ID = string(data)
+		}
+
+		return dn, nil
 	default:
 		return nil, fmt.Errorf("unrecognized iptb node type")
 	}
 }
 
-func (n *LocalNode) Init() error {
-	err := os.MkdirAll(n.Dir, 0777)
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.Command("ipfs", "init", "-b=1024")
-	cmd.Env = append(cmd.Env, "IPFS_PATH="+n.Dir)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%s: %s", err, string(out))
-	}
-
-	return nil
-}
-
 func initSpecs(cfg *InitCfg) ([]*NodeSpec, error) {
 	var specs []*NodeSpec
 	// generate node spec
+
 	for i := 0; i < cfg.Count; i++ {
 		dir, err := IpfsDirN(i)
 		if err != nil {
 			return nil, err
 		}
-		specs = append(specs, &NodeSpec{
-			Type: "local",
-			Dir:  dir,
-		})
+		var ns *NodeSpec
+
+		switch cfg.NodeType {
+		case "docker":
+			ns = &NodeSpec{
+				Type: "docker",
+				Dir:  dir,
+				Extra: map[string]interface{}{
+					"image": "go-ipfs",
+				},
+			}
+		default:
+			ns = &NodeSpec{
+				Type: "local",
+				Dir:  dir,
+			}
+		}
+		specs = append(specs, ns)
 	}
 
 	return specs, nil
@@ -282,7 +315,7 @@ func IpfsInit(cfg *InitCfg) error {
 			defer wait.Done()
 			err := nd.Init()
 			if err != nil {
-				log.Println("ERROR: ", err)
+				stump.Error(err)
 				return
 			}
 		}(n)
@@ -459,6 +492,7 @@ func waitOnAPI(n IpfsNode) error {
 		if err == nil {
 			return nil
 		}
+		stump.VLog("temp error waiting on API: ", err)
 		time.Sleep(time.Millisecond * 200)
 	}
 	return fmt.Errorf("node %s failed to come online in given time period", n.GetPeerID())
@@ -470,6 +504,7 @@ func tryAPICheck(n IpfsNode) error {
 		return err
 	}
 
+	stump.VLog("checking api addresss at: ", addr)
 	resp, err := http.Get("http://" + addr + "/api/v0/id")
 	if err != nil {
 		return err
@@ -539,15 +574,17 @@ func ConnectNodes(from, to IpfsNode) error {
 
 	out, err := to.RunCmd("ipfs", "id", "-f", "<addrs>")
 	if err != nil {
-		return err
+		return fmt.Errorf("error checking node address: %s", err)
 	}
 
-	addr := strings.Split(string(out), "\n")[0]
-	fmt.Printf("connecting %s -> %s\n", from, to)
+	stump.Log("connecting %s -> %s (%s)\n", from, to)
 
-	_, err = from.RunCmd("ipfs", "swarm", "connect", addr)
-	if err != nil {
-		return err
+	for _, addr := range strings.Fields(string(out)) {
+		_, err = from.RunCmd("ipfs", "swarm", "connect", addr)
+		if err == nil {
+			break
+		}
+		stump.Log("dial attempt to %s failed: %s", addr, err)
 	}
 
 	return nil
