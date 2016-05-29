@@ -6,11 +6,12 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 
+	config "github.com/ipfs/go-ipfs/repo/config"
 	serial "github.com/ipfs/go-ipfs/repo/fsrepo/serialize"
 
 	manet "gx/ipfs/QmUBa4w6CbHJUMeGJPDiMEDWsM93xToK1fTnFXnrC8Hksw/go-multiaddr-net"
@@ -73,7 +74,7 @@ func (n *LocalNode) RunCmd(args ...string) (string, error) {
 func (n *LocalNode) APIAddr() (string, error) {
 	dir := n.Dir
 
-	addrb, err := ioutil.ReadFile(path.Join(dir, "api"))
+	addrb, err := ioutil.ReadFile(filepath.Join(dir, "api"))
 	if err != nil {
 		return "", err
 	}
@@ -120,12 +121,12 @@ func (n *LocalNode) Start() error {
 
 	setupOpt(cmd)
 
-	stdout, err := os.Create(path.Join(dir, "daemon.stdout"))
+	stdout, err := os.Create(filepath.Join(dir, "daemon.stdout"))
 	if err != nil {
 		return err
 	}
 
-	stderr, err := os.Create(path.Join(dir, "daemon.stderr"))
+	stderr, err := os.Create(filepath.Join(dir, "daemon.stderr"))
 	if err != nil {
 		return err
 	}
@@ -140,14 +141,14 @@ func (n *LocalNode) Start() error {
 	pid := cmd.Process.Pid
 
 	fmt.Printf("Started daemon %s, pid = %d\n", dir, pid)
-	err = ioutil.WriteFile(path.Join(dir, "daemon.pid"), []byte(fmt.Sprint(pid)), 0666)
+	err = ioutil.WriteFile(filepath.Join(dir, "daemon.pid"), []byte(fmt.Sprint(pid)), 0666)
 	if err != nil {
 		return err
 	}
 
 	// Make sure node 0 is up before starting the rest so
 	// bootstrapping works properly
-	cfg, err := serial.Load(path.Join(dir, "config"))
+	cfg, err := serial.Load(filepath.Join(dir, "config"))
 	if err != nil {
 		return err
 	}
@@ -163,7 +164,7 @@ func (n *LocalNode) Start() error {
 }
 
 func (n *LocalNode) getPID() (int, error) {
-	b, err := ioutil.ReadFile(path.Join(n.Dir, "daemon.pid"))
+	b, err := ioutil.ReadFile(filepath.Join(n.Dir, "daemon.pid"))
 	if err != nil {
 		return -1, err
 	}
@@ -188,7 +189,7 @@ func (n *LocalNode) Kill() error {
 
 	p.Wait()
 
-	err = os.Remove(path.Join(n.Dir, "daemon.pid"))
+	err = os.Remove(filepath.Join(n.Dir, "daemon.pid"))
 	if err != nil {
 		return fmt.Errorf("error removing pid file for daemon at %s: %s\n", n.Dir, err)
 	}
@@ -217,4 +218,12 @@ func (n *LocalNode) GetAttr(attr string) (string, error) {
 	default:
 		return "", errors.New("unrecognized attribute: " + attr)
 	}
+}
+
+func (n *LocalNode) GetConfig() (*config.Config, error) {
+	return serial.Load(filepath.Join(n.Dir, "config"))
+}
+
+func (n *LocalNode) WriteConfig(c *config.Config) error {
+	return serial.WriteConfigFile(filepath.Join(n.Dir, "config"), c)
 }

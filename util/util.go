@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -102,7 +104,7 @@ func LoadLocalNodeN(n int) (*LocalNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	pid, err := GetPeerID(n)
+	pid, err := GetPeerID(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -114,24 +116,140 @@ func LoadLocalNodeN(n int) (*LocalNode, error) {
 }
 
 func LoadNodes() ([]IpfsNode, error) {
-	n := GetNumNodes()
+	specs, err := ReadNodeSpecs()
+	if err != nil {
+		return nil, err
+	}
+
+	return NodesFromSpecs(specs)
+}
+
+func NodesFromSpecs(specs []*NodeSpec) ([]IpfsNode, error) {
 	var out []IpfsNode
-	for i := 0; i < n; i++ {
-		ln, err := LoadLocalNodeN(i)
+	for _, s := range specs {
+		nd, err := s.Load()
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, ln)
+		out = append(out, nd)
 	}
 	return out, nil
 }
 
-func IpfsInit(cfg *InitCfg) error {
-	dir, err := IpfsDirN(0)
+type NodeSpec struct {
+	Type  string
+	Dir   string
+	Extra interface{}
+}
+
+func ReadNodeSpecs() ([]*NodeSpec, error) {
+	tbd, err := TestBedDir()
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := ioutil.ReadFile(filepath.Join(tbd, "nodespec"))
+	if err != nil {
+		return nil, err
+	}
+
+	var specs []*NodeSpec
+	err = json.Unmarshal(data, &specs)
+	if err != nil {
+		return nil, err
+	}
+
+	return specs, nil
+}
+
+func WriteNodeSpecs(specs []*NodeSpec) error {
+	tbd, err := TestBedDir()
 	if err != nil {
 		return err
 	}
-	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+
+	err = os.MkdirAll(tbd, 0775)
+	if err != nil {
+		return err
+	}
+
+	fi, err := os.Create(filepath.Join(tbd, "nodespec"))
+	if err != nil {
+		return err
+	}
+
+	defer fi.Close()
+	err = json.NewEncoder(fi).Encode(specs)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ns *NodeSpec) Load() (IpfsNode, error) {
+	switch ns.Type {
+	case "local":
+		ln := &LocalNode{
+			Dir: ns.Dir,
+		}
+
+		if _, err := os.Stat(filepath.Join(ln.Dir, "config")); err == nil {
+			pid, err := GetPeerID(ln.Dir)
+			if err != nil {
+				return nil, err
+			}
+
+			ln.PeerID = pid
+		}
+
+		return ln, nil
+
+	default:
+		return nil, fmt.Errorf("unrecognized iptb node type")
+	}
+}
+
+func (n *LocalNode) Init() error {
+	err := os.MkdirAll(n.Dir, 0777)
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command("ipfs", "init", "-b=1024")
+	cmd.Env = append(cmd.Env, "IPFS_PATH="+n.Dir)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s: %s", err, string(out))
+	}
+
+	return nil
+}
+
+func initSpecs(cfg *InitCfg) ([]*NodeSpec, error) {
+	var specs []*NodeSpec
+	// generate node spec
+	for i := 0; i < cfg.Count; i++ {
+		dir, err := IpfsDirN(i)
+		if err != nil {
+			return nil, err
+		}
+		specs = append(specs, &NodeSpec{
+			Type: "local",
+			Dir:  dir,
+		})
+	}
+
+	return specs, nil
+}
+
+func IpfsInit(cfg *InitCfg) error {
+	tbd, err := TestBedDir()
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(filepath.Join(tbd, "nodespec")); !os.IsNotExist(err) {
 		if !cfg.Force && !YesNoPrompt("testbed nodes already exist, overwrite? [y/n]") {
 			return nil
 		}
@@ -141,42 +259,45 @@ func IpfsInit(cfg *InitCfg) error {
 			return err
 		}
 	}
-	wait := sync.WaitGroup{}
-	for i := 0; i < cfg.Count; i++ {
-		wait.Add(1)
-		go func(v int) {
-			defer wait.Done()
-			dir, err := IpfsDirN(v)
-			if err != nil {
-				log.Println("ERROR: ", err)
-				return
-			}
-			err = os.MkdirAll(dir, 0777)
-			if err != nil {
-				log.Println("ERROR: ", err)
-				return
-			}
 
-			cmd := exec.Command("ipfs", "init", "-b=1024")
-			cmd.Env = append(cmd.Env, "IPFS_PATH="+dir)
-			out, err := cmd.CombinedOutput()
+	specs, err := initSpecs(cfg)
+	if err != nil {
+		return err
+	}
+
+	nodes, err := NodesFromSpecs(specs)
+	if err != nil {
+		return err
+	}
+
+	err = WriteNodeSpecs(specs)
+	if err != nil {
+		return err
+	}
+
+	wait := sync.WaitGroup{}
+	for _, n := range nodes {
+		wait.Add(1)
+		go func(nd IpfsNode) {
+			defer wait.Done()
+			err := nd.Init()
 			if err != nil {
 				log.Println("ERROR: ", err)
-				log.Println(string(out))
+				return
 			}
-		}(i)
+		}(n)
 	}
 	wait.Wait()
 
 	// Now setup bootstrapping
 	switch cfg.Bootstrap {
 	case "star":
-		err := starBootstrap(cfg)
+		err := starBootstrap(nodes, cfg)
 		if err != nil {
 			return err
 		}
 	case "none":
-		err := clearBootstrapping(cfg)
+		err := clearBootstrapping(nodes, cfg)
 		if err != nil {
 			return err
 		}
@@ -232,35 +353,28 @@ func applyOverrideToNode(ovr map[string]interface{}, node int) error {
 	panic("not implemented")
 }
 
-func starBootstrap(icfg *InitCfg) error {
+func starBootstrap(nodes []IpfsNode, icfg *InitCfg) error {
 	// '0' node is the bootstrap node
-	dir, err := IpfsDirN(0)
+	king := nodes[0]
+
+	bcfg, err := king.GetConfig()
 	if err != nil {
 		return err
 	}
 
-	cfgpath := path.Join(dir, "config")
-	bcfg, err := serial.Load(cfgpath)
-	if err != nil {
-		return err
-	}
 	bcfg.Bootstrap = nil
 	bcfg.Addresses.Swarm = []string{icfg.swarmAddrForPeer(0)}
 	bcfg.Addresses.API = icfg.apiAddrForPeer(0)
 	bcfg.Addresses.Gateway = ""
 	bcfg.Discovery.MDNS.Enabled = icfg.Mdns
-	err = serial.WriteConfigFile(cfgpath, bcfg)
+
+	err = king.WriteConfig(bcfg)
 	if err != nil {
 		return err
 	}
 
-	for i := 1; i < icfg.Count; i++ {
-		dir, err := IpfsDirN(i)
-		if err != nil {
-			return err
-		}
-		cfgpath := path.Join(dir, "config")
-		cfg, err := serial.Load(cfgpath)
+	for i, nd := range nodes[1:] {
+		cfg, err := nd.GetConfig()
 		if err != nil {
 			return err
 		}
@@ -271,10 +385,11 @@ func starBootstrap(icfg *InitCfg) error {
 		cfg.Addresses.Gateway = ""
 		cfg.Discovery.MDNS.Enabled = icfg.Mdns
 		cfg.Addresses.Swarm = []string{
-			icfg.swarmAddrForPeer(i),
+			icfg.swarmAddrForPeer(i + 1),
 		}
-		cfg.Addresses.API = icfg.apiAddrForPeer(i)
-		err = serial.WriteConfigFile(cfgpath, cfg)
+		cfg.Addresses.API = icfg.apiAddrForPeer(i + 1)
+
+		err = nd.WriteConfig(cfg)
 		if err != nil {
 			return err
 		}
@@ -282,14 +397,9 @@ func starBootstrap(icfg *InitCfg) error {
 	return nil
 }
 
-func clearBootstrapping(icfg *InitCfg) error {
-	for i := 0; i < icfg.Count; i++ {
-		dir, err := IpfsDirN(i)
-		if err != nil {
-			return err
-		}
-		cfgpath := path.Join(dir, "config")
-		cfg, err := serial.Load(cfgpath)
+func clearBootstrapping(nodes []IpfsNode, icfg *InitCfg) error {
+	for i, nd := range nodes {
+		cfg, err := nd.GetConfig()
 		if err != nil {
 			return err
 		}
@@ -299,7 +409,7 @@ func clearBootstrapping(icfg *InitCfg) error {
 		cfg.Addresses.Swarm = []string{icfg.swarmAddrForPeer(i)}
 		cfg.Addresses.API = icfg.apiAddrForPeer(i)
 		cfg.Discovery.MDNS.Enabled = icfg.Mdns
-		err = serial.WriteConfigFile(cfgpath, cfg)
+		err = nd.WriteConfig(cfg)
 		if err != nil {
 			return err
 		}
@@ -413,12 +523,8 @@ func waitOnSwarmPeers(n IpfsNode) error {
 }
 
 // GetPeerID reads the config of node 'n' and returns its peer ID
-func GetPeerID(n int) (string, error) {
-	dir, err := IpfsDirN(n)
-	if err != nil {
-		return "", err
-	}
-	cfg, err := serial.Load(path.Join(dir, "config"))
+func GetPeerID(ipfsdir string) (string, error) {
+	cfg, err := serial.Load(path.Join(ipfsdir, "config"))
 	if err != nil {
 		return "", err
 	}
