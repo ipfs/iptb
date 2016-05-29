@@ -308,11 +308,19 @@ func clearBootstrapping(icfg *InitCfg) error {
 }
 
 func IpfsKillAll(nds []IpfsNode) error {
+	var errs []error
 	for _, n := range nds {
 		err := n.Kill()
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
+	}
+	if len(errs) > 0 {
+		var errstr string
+		for _, e := range errs {
+			errstr += "\n" + e.Error()
+		}
+		return fmt.Errorf(strings.TrimSpace(errstr))
 	}
 	return nil
 }
