@@ -64,7 +64,9 @@ func (dn *DockerNode) setAPIAddr() error {
 	}
 
 	dn.apiAddr = dip + ":" + port
-	return nil
+
+	maddr := []byte("/ip4/" + dip + "/tcp/" + port)
+	return ioutil.WriteFile(filepath.Join(dn.Dir, "api"), maddr, 0644)
 }
 
 func (dn *DockerNode) APIAddr() (string, error) {
@@ -99,12 +101,12 @@ func (dn *DockerNode) getDockerIP() (string, error) {
 }
 
 func (dn *DockerNode) Kill() error {
-	out, err := exec.Command("docker", "kill", dn.ID).CombinedOutput()
+	out, err := exec.Command("docker", "kill", "--signal=INT", dn.ID).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s: %s", err, string(out))
 	}
 
-	return nil
+	return os.Remove(filepath.Join(dn.Dir, "dockerID"))
 }
 
 func (dn *DockerNode) String() string {

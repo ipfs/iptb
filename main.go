@@ -81,6 +81,7 @@ func main() {
 		setCmd,
 		shellCmd,
 		startCmd,
+		runCmd,
 	}
 
 	err := app.Run(os.Args)
@@ -396,8 +397,9 @@ var dumpStacksCmd = cli.Command{
 }
 
 var forEachCmd = cli.Command{
-	Name:  "for-each",
-	Usage: "run a given command on each node",
+	Name:            "for-each",
+	Usage:           "run a given command on each node",
+	SkipFlagParsing: true,
 	Action: func(c *cli.Context) error {
 		nodes, err := util.LoadNodes()
 		if err != nil {
@@ -411,6 +413,30 @@ var forEachCmd = cli.Command{
 			}
 			fmt.Print(out)
 		}
+		return nil
+	},
+}
+
+var runCmd = cli.Command{
+	Name:            "run",
+	Usage:           "run a command on a given node",
+	SkipFlagParsing: true,
+	Action: func(c *cli.Context) error {
+		n, err := strconv.Atoi(c.Args()[0])
+		if err != nil {
+			return err
+		}
+
+		nd, err := util.LoadNodeN(n)
+		if err != nil {
+			return err
+		}
+
+		out, err := nd.RunCmd(c.Args()[1:]...)
+		if err != nil {
+			return err
+		}
+		fmt.Print(out)
 		return nil
 	},
 }

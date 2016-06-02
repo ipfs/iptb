@@ -579,12 +579,17 @@ func ConnectNodes(from, to IpfsNode) error {
 
 	stump.Log("connecting %s -> %s (%s)\n", from, to)
 
-	for _, addr := range strings.Fields(string(out)) {
+	addrs := strings.Fields(string(out))
+	for i := len(addrs) - 1; i >= 0; i-- {
+		addr := addrs[i]
+		fmt.Println("trying ipfs swarm connect " + addr)
 		_, err = from.RunCmd("ipfs", "swarm", "connect", addr)
 		if err == nil {
+			stump.Log("connection success!")
 			break
 		}
 		stump.Log("dial attempt to %s failed: %s", addr, err)
+		time.Sleep(time.Millisecond * 100)
 	}
 
 	return nil
