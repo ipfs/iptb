@@ -243,3 +243,7 @@ func (n *LocalNode) GetConfig() (*config.Config, error) {
 func (n *LocalNode) WriteConfig(c *config.Config) error {
 	return serial.WriteConfigFile(filepath.Join(n.Dir, "config"), c)
 }
+
+func (n *LocalNode) SetAttr(name, val string) error {
+	return fmt.Errorf("no atttributes to set")
+}

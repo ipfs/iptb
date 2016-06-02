@@ -71,14 +71,16 @@ func handleErr(s string, err error) {
 func main() {
 	app := cli.NewApp()
 	app.Commands = []cli.Command{
-		initCmd,
-		startCmd,
-		killCmd,
-		restartCmd,
-		shellCmd,
-		getCmd,
 		connectCmd,
 		dumpStacksCmd,
+		forEachCmd,
+		getCmd,
+		initCmd,
+		killCmd,
+		restartCmd,
+		setCmd,
+		shellCmd,
+		startCmd,
 	}
 
 	err := app.Run(os.Args)
@@ -332,6 +334,36 @@ You can get the list of valid attributes by passing no arguments.`,
 	},
 }
 
+var setCmd = cli.Command{
+	Name:  "set",
+	Usage: "set an attribute of the given node",
+	Action: func(c *cli.Context) error {
+		switch len(c.Args()) {
+		case 3:
+			attr := c.Args().First()
+			val := c.Args()[1]
+			nodes, err := parseRange(c.Args()[2])
+			handleErr("error parsing node number: ", err)
+
+			for _, i := range nodes {
+				ln, err := util.LoadNodeN(i)
+				if err != nil {
+					return err
+				}
+
+				err = ln.SetAttr(attr, val)
+				if err != nil {
+					return fmt.Errorf("error setting attribute: %s", err)
+				}
+			}
+		default:
+			fmt.Fprintln(os.Stderr, "'iptb set' accepts exactly 2 arguments")
+			os.Exit(1)
+		}
+		return nil
+	},
+}
+
 var dumpStacksCmd = cli.Command{
 	Name:  "dump-stack",
 	Usage: "get a stack dump from the given daemon",
@@ -359,6 +391,26 @@ var dumpStacksCmd = cli.Command{
 		defer resp.Body.Close()
 
 		io.Copy(os.Stdout, resp.Body)
+		return nil
+	},
+}
+
+var forEachCmd = cli.Command{
+	Name:  "for-each",
+	Usage: "run a given command on each node",
+	Action: func(c *cli.Context) error {
+		nodes, err := util.LoadNodes()
+		if err != nil {
+			return err
+		}
+
+		for _, n := range nodes {
+			out, err := n.RunCmd(c.Args()...)
+			if err != nil {
+				return err
+			}
+			fmt.Print(out)
+		}
 		return nil
 	},
 }

@@ -15,6 +15,7 @@ type IpfsNode interface {
 	String() string
 
 	GetAttr(string) (string, error)
+	SetAttr(string, string) error
 
 	GetConfig() (*config.Config, error)
 	WriteConfig(*config.Config) error

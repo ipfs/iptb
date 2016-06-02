@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/whyrusleeping/stump"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
+
+	cnet "github.com/whyrusleeping/go-ctrlnet"
+	"github.com/whyrusleeping/stump"
 )
 
 type DockerNode struct {
@@ -149,4 +152,73 @@ func (dn *DockerNode) Shell() error {
 	cmd.Stdin = os.Stdin
 
 	return cmd.Run()
+}
+
+func (dn *DockerNode) GetAttr(name string) (string, error) {
+	switch name {
+	case "ifname":
+		return dn.getInterfaceName()
+	default:
+		return dn.LocalNode.GetAttr(name)
+	}
+}
+
+func (dn *DockerNode) SetAttr(name, val string) error {
+	switch name {
+	case "latency":
+		return dn.setLatency(val)
+	default:
+		return fmt.Errorf("no attribute named: %s", name)
+	}
+}
+
+func (dn *DockerNode) setLatency(val string) error {
+	dur, err := time.ParseDuration(val)
+	if err != nil {
+		return err
+	}
+
+	ifn, err := dn.getInterfaceName()
+	if err != nil {
+		return err
+	}
+
+	settings := &cnet.LinkSettings{
+		Latency: int(dur.Nanoseconds() / 1000000),
+	}
+
+	return cnet.SetLink(ifn, settings)
+}
+
+func (dn *DockerNode) getInterfaceName() (string, error) {
+	out, err := dn.RunCmd("ip", "link")
+	if err != nil {
+		return "", err
+	}
+
+	var cside string
+	for _, l := range strings.Split(out, "\n") {
+		if strings.Contains(l, "@if") {
+			ifnum := strings.Split(strings.Split(l, " ")[1], "@")[1]
+			cside = ifnum[2 : len(ifnum)-1]
+			break
+		}
+	}
+
+	if cside == "" {
+		return "", fmt.Errorf("container-side interface not found")
+	}
+
+	localout, err := exec.Command("ip", "link").CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("%s: %s", err, localout)
+	}
+
+	for _, l := range strings.Split(string(localout), "\n") {
+		if strings.HasPrefix(l, cside+": ") {
+			return strings.Split(strings.Fields(l)[1], "@")[0], nil
+		}
+	}
+
+	return "", fmt.Errorf("could not determine interface")
 }
