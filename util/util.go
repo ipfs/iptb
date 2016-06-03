@@ -257,11 +257,15 @@ func initSpecs(cfg *InitCfg) ([]*NodeSpec, error) {
 
 		switch cfg.NodeType {
 		case "docker":
+			img := "go-ipfs"
+			if altimg := os.Getenv("IPFS_DOCKER_IMAGE"); altimg != "" {
+				img = altimg
+			}
 			ns = &NodeSpec{
 				Type: "docker",
 				Dir:  dir,
 				Extra: map[string]interface{}{
-					"image": "go-ipfs",
+					"image": img,
 				},
 			}
 		default:
@@ -589,7 +593,7 @@ func ConnectNodes(from, to IpfsNode) error {
 			break
 		}
 		stump.Log("dial attempt to %s failed: %s", addr, err)
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Second)
 	}
 
 	return nil
