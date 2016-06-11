@@ -14,8 +14,8 @@ import (
 	config "github.com/ipfs/go-ipfs/repo/config"
 	serial "github.com/ipfs/go-ipfs/repo/fsrepo/serialize"
 
-	manet "gx/ipfs/QmUBa4w6CbHJUMeGJPDiMEDWsM93xToK1fTnFXnrC8Hksw/go-multiaddr-net"
-	ma "gx/ipfs/QmYzDkkgAEmrcNzFCiYo6L1dTX4EAG1gZkbtdbd9trL4vd/go-multiaddr"
+	ma "github.com/jbenet/go-multiaddr"
+	manet "github.com/jbenet/go-multiaddr-net"
 )
 
 type LocalNode struct {

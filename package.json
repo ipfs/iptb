@@ -15,9 +15,27 @@
     },
     {
       "author": "jbenet",
-      "hash": "QmUBa4w6CbHJUMeGJPDiMEDWsM93xToK1fTnFXnrC8Hksw",
+      "hash": "QmPpRcbNUXauP3zWZ1NJMLWpe4QnmEHrd2ba2D3yqWznw7",
       "name": "go-multiaddr-net",
-      "version": "1.0.1"
+      "version": "1.2.0"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmVcLF2CgjQb5BWmYFWsDfxDjbzBfcChfdHRedxeL3dV4K",
+      "name": "cli",
+      "version": "0.0.0"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmZLUtHGe9HDQrreAYkXCzzK6mHVByV4MRd8heXAtV5wyS",
+      "name": "stump",
+      "version": "0.0.0"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmRebo5SY2EajaMx2Fnom21KHPWSivJRJHYwe58nZ5N8yC",
+      "name": "go-ctrlnet",
+      "version": "0.0.0"
     }
   ],
   "gxVersion": "0.6.0",
@@ -25,5 +43,5 @@
   "language": "go",
   "license": "",
   "name": "iptb",
-  "version": "0.0.0"
+  "version": "1.0.0"
 }
