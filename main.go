@@ -70,6 +70,7 @@ func handleErr(s string, err error) {
 
 func main() {
 	app := cli.NewApp()
+	app.Usage = "iptb is a tool for managing test clusters of ipfs nodes"
 	app.Commands = []cli.Command{
 		connectCmd,
 		dumpStacksCmd,
