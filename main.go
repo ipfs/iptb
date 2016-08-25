@@ -9,9 +9,14 @@ import (
 	"strings"
 
 	cli "github.com/codegangsta/cli"
+	router "github.com/whyrusleeping/iptb/router"
 	util "github.com/whyrusleeping/iptb/util"
+	"github.com/whyrusleeping/stump"
 )
 
+func init() {
+	stump.Verbose = true
+}
 func parseRange(s string) ([]int, error) {
 	if strings.HasPrefix(s, "[") && strings.HasSuffix(s, "]") {
 		ranges := strings.Split(s[1:len(s)-1], ",")
@@ -83,6 +88,7 @@ func main() {
 		shellCmd,
 		startCmd,
 		runCmd,
+		routerCmd,
 	}
 
 	err := app.Run(os.Args)
@@ -439,5 +445,32 @@ var runCmd = cli.Command{
 		}
 		fmt.Print(out)
 		return nil
+	},
+}
+
+var routerCmd = cli.Command{
+	Name:  "router",
+	Usage: "configure router between nodes",
+	Subcommands: []cli.Command{
+		{
+			Name:   "start",
+			Usage:  "starts the router",
+			Action: router.CStart,
+		},
+		{
+			Name:   "stop",
+			Usage:  "stops the router",
+			Action: router.CStop,
+		},
+		{
+			Name:   "run",
+			Usage:  "runs router in foreground",
+			Action: router.CRun,
+		},
+		{
+			Name:   "link",
+			Usage:  "links selected nodes",
+			Action: router.CLink,
+		},
 	},
 }

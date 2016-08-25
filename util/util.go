@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -65,16 +66,32 @@ type InitCfg struct {
 	NodeType  string
 }
 
+func (c *InitCfg) isNetns() bool {
+	return c.NodeType == "netns"
+}
+
 func (c *InitCfg) swarmAddrForPeer(i int) string {
-	str := "/ip4/0.0.0.0/tcp/%d"
-	if c.Utp {
-		str = "/ip4/0.0.0.0/udp/%d/utp"
+	var str string
+	if c.isNetns() {
+		// Routing is bit easier over IPv6
+		str = "/ip6/::"
+	} else {
+		str = "/ip4/0.0.0.0"
 	}
 
-	if c.PortStart == 0 {
-		return fmt.Sprintf(str, 0)
+	if c.Utp {
+		str += "/udp/%d/utp"
+	} else {
+		str += "/tcp/%d"
 	}
-	return fmt.Sprintf(str, c.PortStart+i)
+	var port int
+	if c.isNetns() {
+		// Those are network namespaces, we can use default port.
+		port = 4001
+	} else if c.PortStart != 0 {
+		port = c.PortStart + i
+	}
+	return fmt.Sprintf(str, port)
 }
 
 func (c *InitCfg) apiAddrForPeer(i int) string {
@@ -84,7 +101,9 @@ func (c *InitCfg) apiAddrForPeer(i int) string {
 	}
 
 	var port int
-	if c.PortStart != 0 {
+	if c.isNetns() {
+		port = 5001
+	} else if c.PortStart != 0 {
 		port = c.PortStart + 1000 + i
 	}
 
@@ -186,24 +205,27 @@ func WriteNodeSpecs(specs []*NodeSpec) error {
 
 	return nil
 }
+func (ns *NodeSpec) loadLocal() (*LocalNode, error) {
+	ln := &LocalNode{
+		Dir: ns.Dir,
+	}
+
+	if _, err := os.Stat(filepath.Join(ln.Dir, "config")); err == nil {
+		pid, err := GetPeerID(ln.Dir)
+		if err != nil {
+			return nil, err
+		}
+
+		ln.PeerID = pid
+	}
+
+	return ln, nil
+}
 
 func (ns *NodeSpec) Load() (IpfsNode, error) {
 	switch ns.Type {
 	case "local":
-		ln := &LocalNode{
-			Dir: ns.Dir,
-		}
-
-		if _, err := os.Stat(filepath.Join(ln.Dir, "config")); err == nil {
-			pid, err := GetPeerID(ln.Dir)
-			if err != nil {
-				return nil, err
-			}
-
-			ln.PeerID = pid
-		}
-
-		return ln, nil
+		return ns.loadLocal()
 	case "docker":
 		imgi, ok := ns.Extra["image"]
 		if !ok {
@@ -239,6 +261,13 @@ func (ns *NodeSpec) Load() (IpfsNode, error) {
 		}
 
 		return dn, nil
+	case "netns":
+		dn, err := ns.loadLocal()
+		if err != nil {
+			return nil, err
+		}
+
+		return &NetnsNode{*dn}, nil
 	default:
 		return nil, fmt.Errorf("unrecognized iptb node type")
 	}
@@ -267,6 +296,11 @@ func initSpecs(cfg *InitCfg) ([]*NodeSpec, error) {
 				Extra: map[string]interface{}{
 					"image": img,
 				},
+			}
+		case "netns":
+			ns = &NodeSpec{
+				Type: "netns",
+				Dir:  dir,
 			}
 		default:
 			ns = &NodeSpec{
@@ -497,7 +531,7 @@ func waitOnAPI(n IpfsNode) error {
 			return nil
 		}
 		stump.VLog("temp error waiting on API: ", err)
-		time.Sleep(time.Millisecond * 200)
+		time.Sleep(time.Millisecond * 500)
 	}
 	return fmt.Errorf("node %s failed to come online in given time period", n.GetPeerID())
 }
@@ -509,13 +543,19 @@ func tryAPICheck(n IpfsNode) error {
 	}
 
 	stump.VLog("checking api addresss at: ", addr)
-	resp, err := http.Get("http://" + addr + "/api/v0/id")
+	cmd := exec.Command("curl", "-m", "4", "http://"+addr+"/api/v0/id")
+	resp, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	err = cmd.Start()
 	if err != nil {
 		return err
 	}
 
 	out := make(map[string]interface{})
-	err = json.NewDecoder(resp.Body).Decode(&out)
+	err = json.NewDecoder(resp).Decode(&out)
 	if err != nil {
 		return fmt.Errorf("liveness check failed: %s", err)
 	}
