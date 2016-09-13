@@ -162,6 +162,26 @@ var startCmd = cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
+		if c.Args().Present() {
+			nodes, err := parseRange(c.Args()[0])
+			if err != nil {
+				return err
+			}
+
+			for _, n := range nodes {
+				nd, err := util.LoadNodeN(n)
+				if err != nil {
+					return fmt.Errorf("failed to load local node: %s\n", err)
+				}
+
+				err = nd.Start()
+				if err != nil {
+					fmt.Println("failed to start node: ", err)
+				}
+			}
+			return nil
+		}
+
 		nodes, err := util.LoadNodes()
 		if err != nil {
 			return err
@@ -176,19 +196,21 @@ var killCmd = cli.Command{
 	Aliases: []string{"stop"},
 	Action: func(c *cli.Context) error {
 		if c.Args().Present() {
-			i, err := strconv.Atoi(c.Args()[0])
+			nodes, err := parseRange(c.Args()[0])
 			if err != nil {
-				fmt.Println("failed to parse node number: ", err)
-				os.Exit(1)
-			}
-			nd, err := util.LoadNodeN(i)
-			if err != nil {
-				return fmt.Errorf("failed to load local node: %s\n", err)
+				return fmt.Errorf("failed to parse node number: %s", err)
 			}
 
-			err = nd.Kill()
-			if err != nil {
-				fmt.Println("failed to kill node: ", err)
+			for _, n := range nodes {
+				nd, err := util.LoadNodeN(n)
+				if err != nil {
+					return fmt.Errorf("failed to load local node: %s\n", err)
+				}
+
+				err = nd.Kill()
+				if err != nil {
+					fmt.Println("failed to kill node: ", err)
+				}
 			}
 			return nil
 		}
@@ -213,6 +235,30 @@ var restartCmd = cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
+		if c.Args().Present() {
+			nodes, err := parseRange(c.Args()[0])
+			if err != nil {
+				return err
+			}
+
+			for _, n := range nodes {
+				nd, err := util.LoadNodeN(n)
+				if err != nil {
+					return fmt.Errorf("failed to load local node: %s\n", err)
+				}
+
+				err = nd.Kill()
+				if err != nil {
+					fmt.Println("restart: failed to kill node: ", err)
+				}
+
+				err = nd.Start()
+				if err != nil {
+					fmt.Println("restart: failed to start node again: ", err)
+				}
+			}
+			return nil
+		}
 		nodes, err := util.LoadNodes()
 		if err != nil {
 			return err

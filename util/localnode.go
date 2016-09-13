@@ -125,11 +125,19 @@ func (n *LocalNode) envForDaemon() ([]string, error) {
 }
 
 func (n *LocalNode) Start() error {
+	alive, err := n.isAlive()
+	if err != nil {
+		return err
+	}
+
+	if alive {
+		return fmt.Errorf("node is already running")
+	}
+
 	dir := n.Dir
 	cmd := exec.Command("ipfs", "daemon")
 	cmd.Dir = dir
 
-	var err error
 	cmd.Env, err = n.envForDaemon()
 	if err != nil {
 		return err
@@ -186,6 +194,26 @@ func (n *LocalNode) getPID() (int, error) {
 	}
 
 	return strconv.Atoi(string(b))
+}
+
+func (n *LocalNode) isAlive() (bool, error) {
+	pid, err := n.getPID()
+	if os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return false, nil
+	}
+
+	err = proc.Signal(syscall.Signal(0))
+	if err == nil {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (n *LocalNode) Kill() error {
