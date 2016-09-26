@@ -124,7 +124,7 @@ func (n *LocalNode) envForDaemon() ([]string, error) {
 	return append(envs, npath), nil
 }
 
-func (n *LocalNode) Start() error {
+func (n *LocalNode) Start(args []string) error {
 	alive, err := n.isAlive()
 	if err != nil {
 		return err
@@ -135,7 +135,8 @@ func (n *LocalNode) Start() error {
 	}
 
 	dir := n.Dir
-	cmd := exec.Command("ipfs", "daemon")
+	dargs := append([]string{"daemon"}, args...)
+	cmd := exec.Command("ipfs", dargs...)
 	cmd.Dir = dir
 
 	cmd.Env, err = n.envForDaemon()

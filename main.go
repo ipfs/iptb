@@ -160,8 +160,18 @@ var startCmd = cli.Command{
 			Name:  "wait",
 			Usage: "wait for nodes to fully come online before returning",
 		},
+		cli.StringFlag{
+			Name:  "args",
+			Usage: "extra args to pass on to the ipfs daemon",
+		},
 	},
 	Action: func(c *cli.Context) error {
+		var extra []string
+		args := c.String("args")
+		if len(args) > 0 {
+			extra = strings.Fields(args)
+		}
+
 		if c.Args().Present() {
 			nodes, err := parseRange(c.Args()[0])
 			if err != nil {
@@ -174,7 +184,7 @@ var startCmd = cli.Command{
 					return fmt.Errorf("failed to load local node: %s\n", err)
 				}
 
-				err = nd.Start()
+				err = nd.Start(extra)
 				if err != nil {
 					fmt.Println("failed to start node: ", err)
 				}
@@ -186,7 +196,7 @@ var startCmd = cli.Command{
 		if err != nil {
 			return err
 		}
-		return util.IpfsStart(nodes, c.Bool("wait"))
+		return util.IpfsStart(nodes, c.Bool("wait"), extra)
 	},
 }
 
@@ -252,7 +262,7 @@ var restartCmd = cli.Command{
 					fmt.Println("restart: failed to kill node: ", err)
 				}
 
-				err = nd.Start()
+				err = nd.Start(nil)
 				if err != nil {
 					fmt.Println("restart: failed to start node again: ", err)
 				}
@@ -269,7 +279,7 @@ var restartCmd = cli.Command{
 			return fmt.Errorf("ipfs kill err: %s", err)
 		}
 
-		err = util.IpfsStart(nodes, c.Bool("wait"))
+		err = util.IpfsStart(nodes, c.Bool("wait"), nil)
 		handleErr("ipfs start err: ", err)
 		return nil
 	},

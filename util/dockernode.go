@@ -26,7 +26,11 @@ type DockerNode struct {
 
 var _ IpfsNode = &DockerNode{}
 
-func (dn *DockerNode) Start() error {
+func (dn *DockerNode) Start(args []string) error {
+	if len(args) > 0 {
+		return fmt.Errorf("cannot yet pass daemon args to docker nodes")
+	}
+
 	cmd := exec.Command("docker", "run", "-d", "-v", dn.Dir+":/data/ipfs", dn.ImageName)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

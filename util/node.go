@@ -7,7 +7,7 @@ import (
 type IpfsNode interface {
 	Init() error
 	Kill() error
-	Start() error
+	Start(args []string) error
 	APIAddr() (string, error)
 	GetPeerID() string
 	RunCmd(args ...string) (string, error)

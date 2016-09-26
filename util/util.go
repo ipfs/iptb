@@ -472,9 +472,9 @@ func IpfsKillAll(nds []IpfsNode) error {
 	return nil
 }
 
-func IpfsStart(nodes []IpfsNode, waitall bool) error {
+func IpfsStart(nodes []IpfsNode, waitall bool, args []string) error {
 	for _, n := range nodes {
-		if err := n.Start(); err != nil {
+		if err := n.Start(args); err != nil {
 			return err
 		}
 	}
