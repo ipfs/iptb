@@ -9,15 +9,15 @@
   "gxDependencies": [
     {
       "author": "whyrusleeping",
-      "hash": "QmYzDkkgAEmrcNzFCiYo6L1dTX4EAG1gZkbtdbd9trL4vd",
+      "hash": "QmUAQaWbKxGCUTuoQVvvicbQNZ9APF5pDGWyAZSe93AtKH",
       "name": "go-multiaddr",
-      "version": "0.0.0"
+      "version": "1.1.2"
     },
     {
       "author": "jbenet",
-      "hash": "QmY83KqqnQ286ZWbV2x7ixpeemH3cBpk8R54egS619WYff",
+      "hash": "QmT6Cp31887FpAc25z25YHgpFJohZedrYLWPPspRtj1Brp",
       "name": "go-multiaddr-net",
-      "version": "1.3.0"
+      "version": "1.5.1"
     },
     {
       "author": "whyrusleeping",
@@ -43,6 +43,7 @@
   "language": "go",
   "license": "",
   "name": "iptb",
-  "version": "1.1.0"
+  "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
+  "version": "1.1.1"
 }
 
