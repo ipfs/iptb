@@ -548,9 +548,25 @@ func waitOnSwarmPeers(n IpfsNode) error {
 				return fmt.Errorf("liveness check failed: %s", err)
 			}
 
-			peers := out["Strings"].([]interface{})
-			if len(peers) == 0 {
+			pstrings, ok := out["Strings"]
+			if ok {
+				if len(pstrings.([]interface{})) == 0 {
+					continue
+				}
+				return nil
+			}
+
+			peers, ok := out["Peers"]
+			if !ok {
+				return fmt.Errorf("object from swarm peers doesnt look right (api mismatch?)")
+			}
+
+			if peers == nil {
 				time.Sleep(time.Millisecond * 200)
+				continue
+			}
+
+			if plist, ok := peers.([]interface{}); ok && len(plist) == 0 {
 				continue
 			}
 
