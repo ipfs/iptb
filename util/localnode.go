@@ -30,7 +30,11 @@ func (n *LocalNode) Init() error {
 	}
 
 	cmd := exec.Command("ipfs", "init", "-b=1024")
-	cmd.Env = append(cmd.Env, "IPFS_PATH="+n.Dir)
+	cmd.Env, err = n.envForDaemon()
+	if err != nil {
+		return err
+	}
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s: %s", err, string(out))
@@ -76,9 +80,14 @@ func (n *LocalNode) Shell() error {
 }
 
 func (n *LocalNode) RunCmd(args ...string) (string, error) {
-	dir := n.Dir
 	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Env = []string{"IPFS_PATH=" + dir}
+
+	var err error
+	cmd.Env, err = n.envForDaemon()
+	if err != nil {
+		return "", err
+	}
+
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("%s: %s", err, string(out))
