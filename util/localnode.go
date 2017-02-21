@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	config "github.com/ipfs/go-ipfs/repo/config"
 	serial "github.com/ipfs/go-ipfs/repo/fsrepo/serialize"
@@ -241,7 +242,13 @@ func (n *LocalNode) Kill() error {
 		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
 	}
 
-	p.Wait()
+	for {
+		err := p.Signal(syscall.Signal(0))
+		if err != nil {
+			break
+		}
+		time.Sleep(time.Millisecond * 10)
+	}
 
 	err = os.Remove(filepath.Join(n.Dir, "daemon.pid"))
 	if err != nil {
