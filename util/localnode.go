@@ -237,7 +237,7 @@ func (n *LocalNode) Kill() error {
 	if err != nil {
 		return fmt.Errorf("error killing daemon %s: %s", n.Dir, err)
 	}
-	err = p.Kill()
+	err = p.Signal(os.Interrupt)
 	if err != nil {
 		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
 	}
@@ -260,7 +260,7 @@ func (n *LocalNode) Kill() error {
 	}
 
 	if timedOut {
-		err := p.Kill()
+		err := p.Signal(os.Interrupt)
 		if err != nil {
 			return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
 		}
@@ -284,7 +284,7 @@ func (n *LocalNode) Kill() error {
 	}
 
 	if timedOut {
-		err := p.Signal(os.Interrupt)
+		err := p.Signal(os.Kill)
 		if err != nil {
 			return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
 		}
