@@ -2,8 +2,10 @@ package main
 
 import (
 	"io/ioutil"
+	"log"
 	"net/http"
 	"testing"
+	"time"
 )
 
 func TestWhatIPFSIsUpTo(t *testing.T) {
@@ -24,4 +26,25 @@ func TestWhatIPFSIsUpTo(t *testing.T) {
 	}
 
 	t.Logf("body: %s", body)
+
+	// the shutdown process is a slow one for some reason, so lets see if we can
+	// get some goroutine info out of ipfs in the middle of it
+	go func() {
+		time.Sleep(3 * time.Second)
+
+		res, err := http.Get("http://" + addr + "/debug/pprof/goroutine?debug=2")
+		if err != nil {
+			log.Println("failed to get ipfs pprof goroutine:", err)
+			return
+		}
+		defer res.Body.Close()
+
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			log.Println("failed to read pprof body:", err)
+			return
+		}
+
+		log.Printf("pprof goroutine: %s\n", body)
+	}()
 }
