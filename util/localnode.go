@@ -245,6 +245,11 @@ func (n *LocalNode) Kill() error {
 	var timedOut bool
 	timeout := time.Now().Add(time.Second * 5)
 
+	_, err = p.Wait()
+	if err != nil {
+		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
+	}
+
 	for {
 		err := p.Signal(syscall.Signal(0))
 		if err != nil {
