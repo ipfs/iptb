@@ -121,6 +121,10 @@ var initCmd = cli.Command{
 			Name:  "utp",
 			Usage: "use utp for addresses",
 		},
+		cli.BoolFlag{
+			Name:  "ws",
+			Usage: "use websocket for addresses",
+		},
 		cli.StringFlag{
 			Name:  "cfg",
 			Usage: "override default config with values from the given file",
@@ -141,6 +145,7 @@ var initCmd = cli.Command{
 			Count:     c.Int("count"),
 			Mdns:      c.Bool("mdns"),
 			Utp:       c.Bool("utp"),
+			Websocket: c.Bool("ws"),
 			PortStart: c.Int("port"),
 			Override:  c.String("cfg"),
 			NodeType:  c.String("type"),

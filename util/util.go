@@ -61,6 +61,7 @@ type InitCfg struct {
 	PortStart int
 	Mdns      bool
 	Utp       bool
+	Websocket bool
 	Override  string
 	NodeType  string
 }
@@ -69,6 +70,9 @@ func (c *InitCfg) swarmAddrForPeer(i int) string {
 	str := "/ip4/0.0.0.0/tcp/%d"
 	if c.Utp {
 		str = "/ip4/0.0.0.0/udp/%d/utp"
+	}
+	if c.Websocket {
+		str = "/ip4/0.0.0.0/tcp/%d/ws"
 	}
 
 	if c.PortStart == 0 {
