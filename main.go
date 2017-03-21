@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -83,6 +84,7 @@ func main() {
 		shellCmd,
 		startCmd,
 		runCmd,
+		logsCmd,
 	}
 
 	err := app.Run(os.Args)
@@ -499,6 +501,91 @@ var runCmd = cli.Command{
 			return err
 		}
 		fmt.Print(out)
+		return nil
+	},
+}
+
+var logsCmd = cli.Command{
+	Name:  "logs",
+	Usage: "shows logs of given node(s), use '*' for all nodes",
+	Flags: []cli.Flag{
+		cli.BoolTFlag{
+			Name:  "err",
+			Usage: "show stderr stream",
+		},
+		cli.BoolTFlag{
+			Name:  "out",
+			Usage: "show stdout stream",
+		},
+		cli.BoolFlag{
+			Name:  "s",
+			Usage: "don't show additional info, just the log",
+		},
+	},
+	Action: func(c *cli.Context) error {
+		var nodes []util.IpfsNode
+		var err error
+
+		if c.Args()[0] == "*" {
+			nodes, err = util.LoadNodes()
+			if err != nil {
+				return err
+			}
+		} else {
+			for _, is := range c.Args() {
+				i, err := strconv.Atoi(is)
+				if err != nil {
+					return err
+				}
+				n, err := util.LoadNodeN(i)
+				if err != nil {
+					return err
+				}
+				nodes = append(nodes, n)
+			}
+		}
+
+		silent := c.Bool("s")
+		stderr := c.BoolT("err")
+		stdout := c.BoolT("out")
+
+		for _, ns := range nodes {
+			n, ok := ns.(*util.LocalNode)
+			if !ok {
+				return errors.New("logs are supported only with local nodes")
+			}
+			if stdout {
+				if !silent {
+					fmt.Printf(">>>> %s", n.Dir)
+					fmt.Println("/daemon.stdout")
+				}
+				st, err := n.StderrReader()
+				if err != nil {
+					return err
+				}
+				io.Copy(os.Stdout, st)
+				st.Close()
+				if !silent {
+					fmt.Println("<<<<")
+				}
+			}
+			if stderr {
+				if !silent {
+					fmt.Printf(">>>> %s", n.Dir)
+					fmt.Println("/daemon.stderr")
+				}
+				st, err := n.StderrReader()
+				if err != nil {
+					return err
+				}
+				io.Copy(os.Stdout, st)
+				st.Close()
+				if !silent {
+					fmt.Println("<<<<")
+				}
+			}
+		}
+
 		return nil
 	},
 }

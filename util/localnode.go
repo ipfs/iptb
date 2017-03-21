@@ -3,6 +3,7 @@ package iptbutil
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -291,4 +292,17 @@ func (n *LocalNode) WriteConfig(c *config.Config) error {
 
 func (n *LocalNode) SetAttr(name, val string) error {
 	return fmt.Errorf("no atttributes to set")
+}
+
+func (n *LocalNode) StdoutReader() (io.ReadCloser, error) {
+	return n.readerFor("daemon.stdout")
+}
+
+func (n *LocalNode) StderrReader() (io.ReadCloser, error) {
+	return n.readerFor("daemon.stderr")
+}
+
+func (n *LocalNode) readerFor(file string) (io.ReadCloser, error) {
+	f, err := os.OpenFile(filepath.Join(n.Dir, file), os.O_RDONLY, 0)
+	return f, err
 }
