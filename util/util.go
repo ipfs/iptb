@@ -601,12 +601,14 @@ func ConnectNodes(from, to IpfsNode) error {
 		return fmt.Errorf("error checking node address: %s", err)
 	}
 
-	stump.Log("connecting %s -> %s (%s)\n", from, to)
+	stump.Log("connecting %s -> %s\n", from, to)
 
 	addrs := strings.Fields(string(out))
-	for i := len(addrs) - 1; i >= 0; i-- {
+	fmt.Println("Addresses: ", addrs)
+	orderishAddresses(addrs)
+	for i := 0; i < len(addrs); i++ {
 		addr := addrs[i]
-		fmt.Println("trying ipfs swarm connect " + addr)
+		stump.Log("trying ipfs swarm connect %s", addr)
 		_, err = from.RunCmd("ipfs", "swarm", "connect", addr)
 		if err == nil {
 			stump.Log("connection success!")
@@ -617,6 +619,15 @@ func ConnectNodes(from, to IpfsNode) error {
 	}
 
 	return nil
+}
+
+func orderishAddresses(addrs []string) {
+	for i, a := range addrs {
+		if strings.Contains(a, "127.0.0.1") {
+			addrs[i], addrs[0] = addrs[0], addrs[i]
+			return
+		}
+	}
 }
 
 type BW struct {
