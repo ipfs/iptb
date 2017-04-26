@@ -20,6 +20,10 @@ $ echo $IPFS_PATH
 $ echo 'hey!' | ipfs add -q
 QmNqugRcYjwh9pEQUK7MLuxvLjxDNZL1DH8PJJgWtQXxuF
 
+$ exit
+
+$ iptb connect 0 4
+
 $ iptb shell 4
 $ ipfs cat QmNqugRcYjwh9pEQUK7MLuxvLjxDNZL1DH8PJJgWtQXxuF
 hey!
