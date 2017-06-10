@@ -1,6 +1,7 @@
 package iptbutil
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -90,12 +91,17 @@ func (n *LocalNode) RunCmd(args ...string) (string, error) {
 		return "", err
 	}
 
-	out, err := cmd.Output()
+	outbuf := new(bytes.Buffer)
+	errbuf := new(bytes.Buffer)
+	cmd.Stdout = outbuf
+	cmd.Stderr = errbuf
+
+	err = cmd.Run()
 	if err != nil {
-		return "", fmt.Errorf("%s: %s", err, string(out))
+		return "", fmt.Errorf("%s: %s %s", err, outbuf.String(), errbuf.String())
 	}
 
-	return string(out), nil
+	return outbuf.String(), nil
 }
 
 func (n *LocalNode) APIAddr() (string, error) {
