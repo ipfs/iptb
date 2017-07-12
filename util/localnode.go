@@ -244,7 +244,15 @@ func (n *LocalNode) Kill() error {
 	if err != nil {
 		return fmt.Errorf("error killing daemon %s: %s", n.Dir, err)
 	}
-	err = p.Kill()
+	err = p.Signal(os.Interrupt)
+	if err != nil {
+		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
+	}
+
+	var timedOut bool
+	timeout := time.Now().Add(time.Second * 5)
+
+	_, err = p.Wait()
 	if err != nil {
 		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
 	}
@@ -254,7 +262,44 @@ func (n *LocalNode) Kill() error {
 		if err != nil {
 			break
 		}
+
+		if time.Now().After(timeout) {
+			timedOut = true
+			break
+		}
+
 		time.Sleep(time.Millisecond * 10)
+	}
+
+	if timedOut {
+		err := p.Signal(os.Interrupt)
+		if err != nil {
+			return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
+		}
+
+		timedOut = false
+		timeout := time.Now().Add(time.Second * 10)
+
+		for {
+			err := p.Signal(syscall.Signal(0))
+			if err != nil {
+				break
+			}
+
+			if time.Now().After(timeout) {
+				timedOut = true
+				break
+			}
+
+			time.Sleep(time.Millisecond * 10)
+		}
+	}
+
+	if timedOut {
+		err := p.Signal(os.Kill)
+		if err != nil {
+			return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
+		}
 	}
 
 	err = os.Remove(filepath.Join(n.Dir, "daemon.pid"))
