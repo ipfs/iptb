@@ -244,7 +244,45 @@ func (n *LocalNode) Kill() error {
 	if err != nil {
 		return fmt.Errorf("error killing daemon %s: %s", n.Dir, err)
 	}
-	err = p.Kill()
+
+	defer func(){
+		err := os.Remove(filepath.Join(n.Dir, "daemon.pid"))
+		if err != nil && !os.IsNotExist(err) {
+			panic(fmt.Errorf("error removing pid file for daemon at %s: %s\n", n.Dir, err))
+		}
+	}()
+
+	err = p.Signal(syscall.Signal(15)) // SIGTERM
+	if err != nil {
+		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
+	}
+
+	err = waitProcess(p, 1000)
+	if err == nil {
+		return nil
+	}
+
+	err = p.Signal(syscall.Signal(15)) // SIGTERM
+	if err != nil {
+		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
+	}
+
+	err = waitProcess(p, 1000)
+	if err == nil {
+		return nil
+	}
+
+	err = p.Signal(syscall.Signal(3)) // SIGQUIT
+	if err != nil {
+		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
+	}
+
+	err = waitProcess(p, 5000)
+	if err == nil {
+		return nil
+	}
+
+	err = p.Signal(syscall.Signal(9)) // SIGKILL
 	if err != nil {
 		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
 	}
@@ -257,12 +295,18 @@ func (n *LocalNode) Kill() error {
 		time.Sleep(time.Millisecond * 10)
 	}
 
-	err = os.Remove(filepath.Join(n.Dir, "daemon.pid"))
-	if err != nil {
-		return fmt.Errorf("error removing pid file for daemon at %s: %s\n", n.Dir, err)
-	}
-
 	return nil
+}
+
+func waitProcess(p *os.Process, ms int) error {
+	for i := 0; i < (ms / 10); i++ {
+		err := p.Signal(syscall.Signal(0))
+		if err != nil {
+			return nil
+		}
+		time.Sleep(time.Millisecond * 10)
+	}
+	return errors.New("timed out")
 }
 
 func (n *LocalNode) GetAttr(attr string) (string, error) {
