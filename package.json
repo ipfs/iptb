@@ -44,6 +44,6 @@
   "license": "",
   "name": "iptb",
   "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
-  "version": "1.2.1"
+  "version": "1.2.2"
 }
 

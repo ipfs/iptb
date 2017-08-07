@@ -4,7 +4,7 @@ test_description="iptb --version and --help tests"
 
 . lib/test-lib.sh
 
-test_expect_success "ipfs-update binary is here" '
+test_expect_success "iptb binary is here" '
 	test -f ../bin/iptb
 '
 
