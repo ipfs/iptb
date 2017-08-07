@@ -252,7 +252,7 @@ func (n *LocalNode) Kill() error {
 		}
 	}()
 
-	err = p.Signal(syscall.Signal(15)) // SIGTERM
+	err = p.Signal(syscall.SIGTERM)
 	if err != nil {
 		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
 	}
@@ -262,7 +262,7 @@ func (n *LocalNode) Kill() error {
 		return nil
 	}
 
-	err = p.Signal(syscall.Signal(15)) // SIGTERM
+	err = p.Signal(syscall.SIGTERM)
 	if err != nil {
 		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
 	}
@@ -272,7 +272,7 @@ func (n *LocalNode) Kill() error {
 		return nil
 	}
 
-	err = p.Signal(syscall.Signal(3)) // SIGQUIT
+	err = p.Signal(syscall.SIGQUIT)
 	if err != nil {
 		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
 	}
@@ -282,7 +282,7 @@ func (n *LocalNode) Kill() error {
 		return nil
 	}
 
-	err = p.Signal(syscall.Signal(9)) // SIGKILL
+	err = p.Signal(syscall.SIGKILL)
 	if err != nil {
 		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
 	}
