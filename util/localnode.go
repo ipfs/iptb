@@ -245,7 +245,7 @@ func (n *LocalNode) Kill() error {
 		return fmt.Errorf("error killing daemon %s: %s", n.Dir, err)
 	}
 
-	defer func(){
+	defer func() {
 		err := os.Remove(filepath.Join(n.Dir, "daemon.pid"))
 		if err != nil && !os.IsNotExist(err) {
 			panic(fmt.Errorf("error removing pid file for daemon at %s: %s\n", n.Dir, err))
