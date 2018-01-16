@@ -136,6 +136,10 @@ var initCmd = cli.Command{
 			Name:  "type",
 			Usage: "select type of nodes to initialize",
 		},
+		cli.StringFlag{
+			Name:  "profile",
+			Usage: "initialize nodes with the specified profile",
+		},
 	},
 	Action: func(c *cli.Context) error {
 		if c.Int("count") == 0 {
@@ -152,6 +156,7 @@ var initCmd = cli.Command{
 			PortStart: c.Int("port"),
 			Override:  c.String("cfg"),
 			NodeType:  c.String("type"),
+			Profile:   c.String("profile"),
 		}
 
 		err := util.IpfsInit(cfg)

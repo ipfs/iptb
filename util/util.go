@@ -64,6 +64,7 @@ type InitCfg struct {
 	Websocket bool
 	Override  string
 	NodeType  string
+	Profile   string
 }
 
 func (c *InitCfg) swarmAddrForPeer(i int) string {
@@ -195,7 +196,8 @@ func (ns *NodeSpec) Load() (IpfsNode, error) {
 	switch ns.Type {
 	case "local":
 		ln := &LocalNode{
-			Dir: ns.Dir,
+			Dir:     ns.Dir,
+			Profile: ns.Extra["profile"].(string),
 		}
 
 		if _, err := os.Stat(filepath.Join(ln.Dir, "config")); err == nil {
@@ -269,13 +271,17 @@ func initSpecs(cfg *InitCfg) ([]*NodeSpec, error) {
 				Type: "docker",
 				Dir:  dir,
 				Extra: map[string]interface{}{
-					"image": img,
+					"image":   img,
+					"profile": cfg.Profile,
 				},
 			}
 		default:
 			ns = &NodeSpec{
 				Type: "local",
 				Dir:  dir,
+				Extra: map[string]interface{}{
+					"profile": cfg.Profile,
+				},
 			}
 		}
 		specs = append(specs, ns)

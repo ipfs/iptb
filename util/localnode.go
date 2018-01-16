@@ -24,8 +24,9 @@ import (
 var ErrTimeout = errors.New("timeout")
 
 type LocalNode struct {
-	Dir    string
-	PeerID string
+	Dir     string
+	PeerID  string
+	Profile string
 }
 
 func (n *LocalNode) Init() error {
@@ -34,7 +35,12 @@ func (n *LocalNode) Init() error {
 		return err
 	}
 
-	cmd := exec.Command("ipfs", "init", "-b=1024")
+	arg := []string{"init", "-b=1024"}
+	if n.Profile != "" {
+		arg = append(arg, "--profile="+n.Profile)
+	}
+
+	cmd := exec.Command("ipfs", arg...)
 	cmd.Env, err = n.envForDaemon()
 	if err != nil {
 		return err

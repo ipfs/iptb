@@ -20,7 +20,7 @@ test_expect_success "iptb stop works" '
 
 for i in {0..2}; do
 	test_expect_success "daemon '$i' was shut down gracefully" '
-		cat testbed/'$i'/daemon.stderr | tail -1 | grep "Gracefully shut down daemon"
+		cat testbed/'$i'/daemon.stderr | grep "Gracefully shut down daemon"
 	'
 done
 
