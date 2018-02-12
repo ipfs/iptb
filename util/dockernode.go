@@ -197,7 +197,7 @@ func (dn *DockerNode) setLatency(val string) error {
 	}
 
 	settings := &cnet.LinkSettings{
-		Latency: int(dur.Nanoseconds() / 1000000),
+		Latency: uint(dur.Nanoseconds() / 1000000),
 	}
 
 	return cnet.SetLink(ifn, settings)
@@ -215,7 +215,7 @@ func (dn *DockerNode) setJitter(val string) error {
 	}
 
 	settings := &cnet.LinkSettings{
-		Jitter: int(dur.Nanoseconds() / 1000000),
+		Jitter: uint(dur.Nanoseconds() / 1000000),
 	}
 
 	return cnet.SetLink(ifn, settings)
@@ -234,7 +234,7 @@ func (dn *DockerNode) setBandwidth(val string) error {
 	}
 
 	settings := &cnet.LinkSettings{
-		Bandwidth: int(bw * 1000000),
+		Bandwidth: uint(bw * 1000000),
 	}
 
 	return cnet.SetLink(ifn, settings)
@@ -253,7 +253,7 @@ func (dn *DockerNode) setPacketLoss(val string) error {
 	}
 
 	settings := &cnet.LinkSettings{
-		PacketLoss: int(ratio),
+		PacketLoss: uint8(ratio),
 	}
 
 	return cnet.SetLink(ifn, settings)
