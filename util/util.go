@@ -261,7 +261,7 @@ func initSpecs(cfg *InitCfg) ([]*NodeSpec, error) {
 
 		switch cfg.NodeType {
 		case "docker":
-			img := "go-ipfs"
+			img := "ipfs/go-ipfs"
 			if altimg := os.Getenv("IPFS_DOCKER_IMAGE"); altimg != "" {
 				img = altimg
 			}

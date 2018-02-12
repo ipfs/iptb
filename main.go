@@ -422,7 +422,7 @@ var setCmd = cli.Command{
 				}
 			}
 		default:
-			fmt.Fprintln(os.Stderr, "'iptb set' accepts exactly 2 arguments")
+			fmt.Fprintln(os.Stderr, "'iptb set' accepts exactly 3 arguments")
 			os.Exit(1)
 		}
 		return nil
