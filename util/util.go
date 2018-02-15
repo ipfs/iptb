@@ -501,7 +501,7 @@ func waitOnAPI(n IpfsNode) error {
 			return nil
 		}
 		stump.VLog("temp error waiting on API: ", err)
-		time.Sleep(time.Millisecond * 200)
+		time.Sleep(time.Millisecond * 400)
 	}
 	return fmt.Errorf("node %s failed to come online in given time period", n.GetPeerID())
 }
