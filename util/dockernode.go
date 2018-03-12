@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -152,7 +153,7 @@ func (dn *DockerNode) Shell() error {
 		nenvs = append(nenvs, fmt.Sprintf("NODE%d=%s", i, peerid))
 	}
 
-	cmd := exec.Command("docker", "exec", "-ti", dn.ID, "/bin/bash")
+	cmd := exec.Command("docker", "exec", "-ti", dn.ID, "/bin/sh")
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
@@ -173,6 +174,12 @@ func (dn *DockerNode) SetAttr(name, val string) error {
 	switch name {
 	case "latency":
 		return dn.setLatency(val)
+	case "bandwidth":
+		return dn.setBandwidth(val)
+	case "jitter":
+		return dn.setJitter(val)
+	case "loss":
+		return dn.setPacketLoss(val)
 	default:
 		return fmt.Errorf("no attribute named: %s", name)
 	}
@@ -190,7 +197,63 @@ func (dn *DockerNode) setLatency(val string) error {
 	}
 
 	settings := &cnet.LinkSettings{
-		Latency: int(dur.Nanoseconds() / 1000000),
+		Latency: uint(dur.Nanoseconds() / 1000000),
+	}
+
+	return cnet.SetLink(ifn, settings)
+}
+
+func (dn *DockerNode) setJitter(val string) error {
+	dur, err := time.ParseDuration(val)
+	if err != nil {
+		return err
+	}
+
+	ifn, err := dn.getInterfaceName()
+	if err != nil {
+		return err
+	}
+
+	settings := &cnet.LinkSettings{
+		Jitter: uint(dur.Nanoseconds() / 1000000),
+	}
+
+	return cnet.SetLink(ifn, settings)
+}
+
+// set bandwidth (expects Mbps)
+func (dn *DockerNode) setBandwidth(val string) error {
+	bw, err := strconv.ParseFloat(val, 32)
+	if err != nil {
+		return err
+	}
+
+	ifn, err := dn.getInterfaceName()
+	if err != nil {
+		return err
+	}
+
+	settings := &cnet.LinkSettings{
+		Bandwidth: uint(bw * 1000000),
+	}
+
+	return cnet.SetLink(ifn, settings)
+}
+
+// set packet loss percentage (dropped / total)
+func (dn *DockerNode) setPacketLoss(val string) error {
+	ratio, err := strconv.ParseUint(val, 10, 8)
+	if err != nil {
+		return err
+	}
+
+	ifn, err := dn.getInterfaceName()
+	if err != nil {
+		return err
+	}
+
+	settings := &cnet.LinkSettings{
+		PacketLoss: uint8(ratio),
 	}
 
 	return cnet.SetLink(ifn, settings)
