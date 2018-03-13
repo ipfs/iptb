@@ -21,6 +21,8 @@ import (
 	manet "github.com/multiformats/go-multiaddr-net"
 )
 
+var ErrTimeout = errors.New("timeout")
+
 type LocalNode struct {
 	Dir    string
 	PeerID string
@@ -245,6 +247,12 @@ func (n *LocalNode) Kill() error {
 		return fmt.Errorf("error killing daemon %s: %s", n.Dir, err)
 	}
 
+	waitch := make(chan struct{}, 1)
+	go func() {
+		p.Wait() //TODO: pass return state
+		waitch <- struct{}{}
+	}()
+
 	defer func() {
 		err := os.Remove(filepath.Join(n.Dir, "daemon.pid"))
 		if err != nil && !os.IsNotExist(err) {
@@ -252,39 +260,20 @@ func (n *LocalNode) Kill() error {
 		}
 	}()
 
-	err = p.Signal(syscall.SIGTERM)
-	if err != nil {
-		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
+	if err := n.signalAndWait(p, waitch, syscall.SIGTERM, 1*time.Second); err != ErrTimeout {
+		return err
 	}
 
-	err = waitProcess(p, 1000)
-	if err == nil {
-		return nil
+	if err := n.signalAndWait(p, waitch, syscall.SIGTERM, 2*time.Second); err != ErrTimeout {
+		return err
 	}
 
-	err = p.Signal(syscall.SIGTERM)
-	if err != nil {
-		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
+	if err := n.signalAndWait(p, waitch, syscall.SIGQUIT, 5*time.Second); err != ErrTimeout {
+		return err
 	}
 
-	err = waitProcess(p, 1000)
-	if err == nil {
-		return nil
-	}
-
-	err = p.Signal(syscall.SIGQUIT)
-	if err != nil {
-		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
-	}
-
-	err = waitProcess(p, 5000)
-	if err == nil {
-		return nil
-	}
-
-	err = p.Signal(syscall.SIGKILL)
-	if err != nil {
-		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
+	if err := n.signalAndWait(p, waitch, syscall.SIGKILL, 5*time.Second); err != ErrTimeout {
+		return err
 	}
 
 	for {
@@ -298,15 +287,18 @@ func (n *LocalNode) Kill() error {
 	return nil
 }
 
-func waitProcess(p *os.Process, ms int) error {
-	for i := 0; i < (ms / 10); i++ {
-		err := p.Signal(syscall.Signal(0))
-		if err != nil {
-			return nil
-		}
-		time.Sleep(time.Millisecond * 10)
+func (n *LocalNode) signalAndWait(p *os.Process, waitch <-chan struct{}, signal os.Signal, t time.Duration) error {
+	err := p.Signal(signal)
+	if err != nil {
+		return fmt.Errorf("error killing daemon %s: %s\n", n.Dir, err)
 	}
-	return errors.New("timed out")
+
+	select {
+	case <-waitch:
+		return nil
+	case <-time.After(t):
+		return ErrTimeout
+	}
 }
 
 func (n *LocalNode) GetAttr(attr string) (string, error) {
