@@ -33,9 +33,9 @@
     },
     {
       "author": "whyrusleeping",
-      "hash": "QmRebo5SY2EajaMx2Fnom21KHPWSivJRJHYwe58nZ5N8yC",
+      "hash": "QmfEZa44SyWfyXpkbVfi19H1QpY73DU6E5omK2HbKXwqR6",
       "name": "go-ctrlnet",
-      "version": "0.0.0"
+      "version": "0.1.0"
     }
   ],
   "gxVersion": "0.6.0",
