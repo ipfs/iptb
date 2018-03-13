@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	cli "github.com/codegangsta/cli"
-	util "github.com/whyrusleeping/iptb/util"
+	util "github.com/ipfs/iptb/util"
 )
 
 func parseRange(s string) ([]int, error) {
