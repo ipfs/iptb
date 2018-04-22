@@ -590,7 +590,7 @@ func GetPeerID(ipfsdir string) (string, error) {
 	return cfg.Identity.PeerID, nil
 }
 
-func ConnectNodes(from, to IpfsNode) error {
+func ConnectNodes(from, to IpfsNode, timeout string) error {
 	if from == to {
 		// skip connecting to self..
 		return nil
@@ -609,7 +609,14 @@ func ConnectNodes(from, to IpfsNode) error {
 	for i := 0; i < len(addrs); i++ {
 		addr := addrs[i]
 		stump.Log("trying ipfs swarm connect %s", addr)
-		_, err = from.RunCmd("ipfs", "swarm", "connect", addr)
+
+		args := []string{"ipfs", "swarm", "connect", addr}
+		if timeout != "" {
+			args = append(args, "--timeout="+timeout)
+		}
+
+		_, err = from.RunCmd(args...)
+
 		if err == nil {
 			stump.Log("connection success!")
 			break
