@@ -1,10 +1,10 @@
 {
   "author": "whyrusleeping",
   "bugs": {
-    "url": "https://github.com/whyrusleeping/iptb"
+    "url": "https://github.com/ipfs/iptb"
   },
   "gx": {
-    "dvcsimport": "github.com/whyrusleeping/iptb"
+    "dvcsimport": "github.com/ipfs/iptb"
   },
   "gxDependencies": [
     {
