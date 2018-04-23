@@ -54,6 +54,10 @@ GLOBAL OPTIONS:
 	--help, -h		show help
 	--version, -v		print the version
 ```
+### Prerequisites
+
+`iptb` requires you to have `ipfs-go` installed locally. You can find it and how to install [here](https://github.com/ipfs/go-ipfs#install)
+
 
 ### Install
 
