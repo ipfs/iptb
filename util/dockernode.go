@@ -32,22 +32,26 @@ func (dn *DockerNode) Start(args []string) error {
 		return fmt.Errorf("cannot yet pass daemon args to docker nodes")
 	}
 
-	cmd := exec.Command("docker", "run", "-d", "-v", dn.Dir+":/data/ipfs", dn.ImageName)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%s: %s", err, string(out))
+	// if docker container does not exist for this node, start a new one. this
+	// should primarily happen if `iptb start` is run multiple times in a row,
+	// as `iptb kill` removes an associated `dockerID` file
+	if len(dn.ID) == 0 {
+		cmd := exec.Command("docker", "run", "-d", "-v", dn.Dir+":/data/ipfs", dn.ImageName)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("%s: %s", err, string(out))
+		}
+
+		id := bytes.TrimSpace(out)
+		idfile := filepath.Join(dn.Dir, "dockerID")
+		err = ioutil.WriteFile(idfile, id, 0664)
+		if err != nil {
+			return err
+		}
+		dn.ID = string(id)
 	}
 
-	id := bytes.TrimSpace(out)
-	idfile := filepath.Join(dn.Dir, "dockerID")
-	err = ioutil.WriteFile(idfile, id, 0664)
-	if err != nil {
-		return err
-	}
-
-	dn.ID = string(id)
-
-	err = waitOnAPI(dn)
+	err := waitOnAPI(dn)
 	if err != nil {
 		return err
 	}
