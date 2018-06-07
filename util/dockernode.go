@@ -39,20 +39,32 @@ func (dn *DockerNode) Start(args []string) error {
 	}
 
 	id := bytes.TrimSpace(out)
+	dn.ID = string(id)
 	idfile := filepath.Join(dn.Dir, "dockerID")
 	err = ioutil.WriteFile(idfile, id, 0664)
+
 	if err != nil {
+		killErr := dn.killContainer()
+		if killErr != nil {
+			return combineErrors(err, killErr)
+		}
 		return err
 	}
 
-	dn.ID = string(id)
-
 	err = waitOnAPI(dn)
 	if err != nil {
+		killErr := dn.Kill()
+		if killErr != nil {
+			return combineErrors(err, killErr)
+		}
 		return err
 	}
 
 	return nil
+}
+
+func combineErrors(err1, err2 error) error {
+	return fmt.Errorf("%v\nwhile handling the above error, the following error occurred:\n%v", err1, err2)
 }
 
 func (dn *DockerNode) setAPIAddr() error {
@@ -106,12 +118,19 @@ func (dn *DockerNode) getDockerIP() (string, error) {
 }
 
 func (dn *DockerNode) Kill() error {
+	err := dn.killContainer()
+	if err != nil {
+		return err
+	}
+	return os.Remove(filepath.Join(dn.Dir, "dockerID"))
+}
+
+func (dn *DockerNode) killContainer() error {
 	out, err := exec.Command("docker", "kill", "--signal=INT", dn.ID).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s: %s", err, string(out))
 	}
-
-	return os.Remove(filepath.Join(dn.Dir, "dockerID"))
+	return nil
 }
 
 func (dn *DockerNode) String() string {
