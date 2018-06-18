@@ -619,13 +619,13 @@ func ConnectNodes(from, to IpfsNode, timeout string) error {
 
 		if err == nil {
 			stump.Log("connection success!")
-			break
+			return nil
 		}
 		stump.Log("dial attempt to %s failed: %s", addr, err)
 		time.Sleep(time.Second)
 	}
 
-	return nil
+	return errors.New("no dialable addresses")
 }
 
 func orderishAddresses(addrs []string) {
