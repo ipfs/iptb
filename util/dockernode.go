@@ -16,6 +16,8 @@ import (
 	"github.com/whyrusleeping/stump"
 )
 
+// DockerNode is an IPFS node in a docker container controlled
+// by IPTB
 type DockerNode struct {
 	ImageName string
 	ID        string
@@ -25,7 +27,8 @@ type DockerNode struct {
 	LocalNode
 }
 
-var _ IpfsNode = &DockerNode{}
+// assert DockerNode satisfies the testbed IpfsNode interface
+var _ IpfsNode = (*DockerNode)(nil)
 
 func (dn *DockerNode) Start(args []string) error {
 	if len(args) > 0 {

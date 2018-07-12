@@ -4,6 +4,8 @@ import (
 	"github.com/ipfs/go-ipfs/repo/config"
 )
 
+// IpfsNode defines the interface iptb requires to work
+// with an IPFS node
 type IpfsNode interface {
 	Init() error
 	Kill() error
