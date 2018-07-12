@@ -11,7 +11,7 @@ import (
 
 	util "github.com/ipfs/iptb/util"
 
-	cli "github.com/codegangsta/cli"
+	cli "github.com/urfave/cli"
 )
 
 func parseRange(s string) ([]int, error) {

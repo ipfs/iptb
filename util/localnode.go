@@ -23,10 +23,14 @@ import (
 
 var ErrTimeout = errors.New("timeout")
 
+// LocalNode is a machine-local IPFS node controlled by IPTB
 type LocalNode struct {
 	Dir    string
 	PeerID string
 }
+
+// assert LocalNode satisfies the IpfsNode interface
+var _ IpfsNode = (*LocalNode)(nil)
 
 func (n *LocalNode) Init() error {
 	err := os.MkdirAll(n.Dir, 0777)
