@@ -58,7 +58,7 @@ GLOBAL OPTIONS:
 ### Install
 
 ```
-go get github.com/whyrusleeping/iptb
+go get github.com/ipfs/iptb
 ```
 
 ### Configuration
