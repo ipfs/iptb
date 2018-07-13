@@ -1,4 +1,5 @@
 # IPTB
+
 `iptb` is a program used to create and manage a cluster of sandboxed IPFS nodes locally on your computer. Spin up 1000s of nodes! It exposes various options, such as different bootstrapping patterns. `iptb` makes testing IPFS networks easy!
 
 ### Example
@@ -58,13 +59,12 @@ GLOBAL OPTIONS:
 ### Install
 
 ```
-go get github.com/whyrusleeping/iptb
+go get github.com/ipfs/iptb
 ```
 
 ### Configuration
 
-By default, `iptb` uses `$HOME/testbed` to store created nodes. This path is
-configurable via the environment variables `IPTB_ROOT`.
+By default, `iptb` uses `$HOME/testbed` to store created nodes. This path is configurable via the environment variables `IPTB_ROOT`.
 
 
 
