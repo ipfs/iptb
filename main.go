@@ -316,6 +316,7 @@ NODE[x] - set to the peer ID of node x
 			return err
 		}
 
+		fmt.Println("Opening up a new shell with $IPFS_PATH set to the selected node. Do CTRL+D to exit")
 		err = n.Shell()
 		handleErr("ipfs shell err: ", err)
 		return nil

@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	serial "github.com/ipfs/go-ipfs/repo/fsrepo/serialize"
 	"github.com/whyrusleeping/stump"
 )
@@ -208,6 +209,21 @@ func (ns *NodeSpec) Load() (IpfsNode, error) {
 		}
 
 		return ln, nil
+	case "jsipfs":
+		ln := &JavaScriptNode{
+			Dir: ns.Dir,
+		}
+
+		if _, err := os.Stat(filepath.Join(ln.Dir, "config")); err == nil {
+			pid, err := GetPeerID(ln.Dir)
+			if err != nil {
+				return nil, err
+			}
+
+			ln.PeerID = pid
+		}
+
+		return ln, nil
 	case "docker":
 		imgi, ok := ns.Extra["image"]
 		if !ok {
@@ -259,6 +275,7 @@ func initSpecs(cfg *InitCfg) ([]*NodeSpec, error) {
 		}
 		var ns *NodeSpec
 
+		// TODO should error if pass in a bad node type
 		switch cfg.NodeType {
 		case "docker":
 			img := "ipfs/go-ipfs"
@@ -271,6 +288,11 @@ func initSpecs(cfg *InitCfg) ([]*NodeSpec, error) {
 				Extra: map[string]interface{}{
 					"image": img,
 				},
+			}
+		case "jsipfs":
+			ns = &NodeSpec{
+				Type: "jsipfs",
+				Dir:  dir,
 			}
 		default:
 			ns = &NodeSpec{
@@ -403,7 +425,7 @@ func starBootstrap(nodes []IpfsNode, icfg *InitCfg) error {
 		return err
 	}
 
-	bcfg.Bootstrap = nil
+	bcfg.Bootstrap = []string{}
 	bcfg.Addresses.Swarm = []string{icfg.swarmAddrForPeer(0)}
 	bcfg.Addresses.API = icfg.apiAddrForPeer(0)
 	bcfg.Addresses.Gateway = ""
@@ -423,6 +445,7 @@ func starBootstrap(nodes []IpfsNode, icfg *InitCfg) error {
 		ba := fmt.Sprintf("%s/ipfs/%s", bcfg.Addresses.Swarm[0], bcfg.Identity.PeerID)
 		ba = strings.Replace(ba, "0.0.0.0", "127.0.0.1", -1)
 		cfg.Bootstrap = []string{ba}
+		spew.Dump(cfg.Bootstrap)
 		cfg.Addresses.Gateway = ""
 		cfg.Discovery.MDNS.Enabled = icfg.Mdns
 		cfg.Addresses.Swarm = []string{
