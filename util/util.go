@@ -208,6 +208,23 @@ func (ns *NodeSpec) Load() (IpfsNode, error) {
 		}
 
 		return ln, nil
+	case "netns":
+		nsn := &NetnsNode{
+			Name: ns.Extra["name"].(string),
+			LocalNode: LocalNode{
+				Dir: ns.Dir,
+			},
+		}
+
+		if _, err := os.Stat(filepath.Join(nsn.Dir, "config")); err == nil {
+			pid, err := GetPeerID(nsn.Dir)
+			if err != nil {
+				return nil, err
+			}
+
+			nsn.PeerID = pid
+		}
+		return nsn, nil
 	case "docker":
 		imgi, ok := ns.Extra["image"]
 		if !ok {
@@ -243,6 +260,7 @@ func (ns *NodeSpec) Load() (IpfsNode, error) {
 		}
 
 		return dn, nil
+
 	default:
 		return nil, fmt.Errorf("unrecognized iptb node type")
 	}
