@@ -79,6 +79,8 @@ func main() {
 		forEachCmd,
 		getCmd,
 		initCmd,
+		createNodespecCmd,
+		initNodespecCmd,
 		killCmd,
 		restartCmd,
 		setCmd,
@@ -145,17 +147,140 @@ var initCmd = cli.Command{
 		cfg := &util.InitCfg{
 			Bootstrap: c.String("bootstrap"),
 			Force:     c.Bool("f"),
-			Count:     c.Int("count"),
 			Mdns:      c.Bool("mdns"),
 			Utp:       c.Bool("utp"),
 			Websocket: c.Bool("ws"),
 			PortStart: c.Int("port"),
 			Override:  c.String("cfg"),
-			NodeType:  c.String("type"),
 		}
 
-		err := util.IpfsInit(cfg)
-		handleErr("ipfs init err: ", err)
+		tbd, err := util.TestBedDir()
+		if err != nil {
+			return err
+		}
+
+		if err := util.AlreadyInitCheck(tbd, cfg.Force); err != nil {
+			return err
+		}
+
+		specs, err := util.InitSpecs(c.Int("count"), c.String("type"))
+		if err != nil {
+			return err
+		}
+
+		nodes, err := util.NodesFromSpecs(specs)
+		if err != nil {
+			return err
+		}
+
+		err = util.WriteNodeSpecs(specs)
+		if err != nil {
+			return err
+		}
+
+		return util.InitNodes(nodes, cfg)
+	},
+}
+
+var createNodespecCmd = cli.Command{
+	Name:  "create-nodespec",
+	Usage: "generate testbed nodes layout file",
+	Flags: []cli.Flag{
+		cli.IntFlag{
+			Name:  "count, n",
+			Usage: "number of ipfs nodes to initialize",
+		},
+		cli.StringFlag{
+			Name:  "type",
+			Usage: "select type of nodes to initialize",
+		},
+	},
+	Action: func(c *cli.Context) error {
+		if c.Int("count") == 0 {
+			fmt.Printf("please specify number of nodes: '%s init -n 10'\n", os.Args[0])
+			os.Exit(1)
+		}
+
+		tbd, err := util.TestBedDir()
+		if err != nil {
+			return err
+		}
+
+		if err := util.AlreadyInitCheck(tbd, false); err != nil {
+			return err
+		}
+
+		specs, err := util.InitSpecs(c.Int("count"), c.String("type"))
+		if err != nil {
+			return fmt.Errorf("init specs failed: %s", err)
+		}
+
+		if err := util.WriteNodeSpecs(specs); err != nil {
+			return fmt.Errorf("write node specs failed: %s", err)
+		}
+
+		return nil
+	},
+}
+
+var initNodespecCmd = cli.Command{
+	Name:  "init-nodespec",
+	Usage: "create and initialize testbed nodes",
+	Flags: []cli.Flag{
+		cli.IntFlag{
+			Name:  "port, p",
+			Usage: "port to start allocations from",
+		},
+		cli.BoolFlag{
+			Name:  "force, f",
+			Usage: "force initialization (overwrite existing configs)",
+		},
+		cli.BoolFlag{
+			Name:  "mdns",
+			Usage: "turn on mdns for nodes",
+		},
+		cli.StringFlag{
+			Name:  "bootstrap",
+			Usage: "select bootstrapping style for cluster",
+			Value: "star",
+		},
+		cli.BoolFlag{
+			Name:  "utp",
+			Usage: "use utp for addresses",
+		},
+		cli.BoolFlag{
+			Name:  "ws",
+			Usage: "use websocket for addresses",
+		},
+		cli.StringFlag{
+			Name:  "cfg",
+			Usage: "override default config with values from the given file",
+		},
+	},
+	Action: func(c *cli.Context) error {
+		if c.Int("count") == 0 {
+			fmt.Printf("please specify number of nodes: '%s init -n 10'\n", os.Args[0])
+			os.Exit(1)
+		}
+		cfg := &util.InitCfg{
+			Bootstrap: c.String("bootstrap"),
+			Force:     c.Bool("f"),
+			Mdns:      c.Bool("mdns"),
+			Utp:       c.Bool("utp"),
+			Websocket: c.Bool("ws"),
+			PortStart: c.Int("port"),
+			Override:  c.String("cfg"),
+		}
+
+		nodes, err := util.LoadNodes()
+		if err != nil {
+			return err
+		}
+
+		if err := util.InitNodes(nodes, cfg); err != nil {
+			return err
+		}
+
 		return nil
 	},
 }

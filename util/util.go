@@ -14,6 +14,7 @@ import (
 	"time"
 
 	serial "github.com/ipfs/go-ipfs/repo/fsrepo/serialize"
+	netdef "github.com/whyrusleeping/go-netdef"
 	"github.com/whyrusleeping/stump"
 )
 
@@ -55,7 +56,6 @@ func IpfsDirN(n int) (string, error) {
 }
 
 type InitCfg struct {
-	Count     int
 	Force     bool
 	Bootstrap string
 	PortStart int
@@ -63,7 +63,6 @@ type InitCfg struct {
 	Utp       bool
 	Websocket bool
 	Override  string
-	NodeType  string
 }
 
 func (c *InitCfg) swarmAddrForPeer(i int) string {
@@ -81,15 +80,15 @@ func (c *InitCfg) swarmAddrForPeer(i int) string {
 	return fmt.Sprintf(str, c.PortStart+i)
 }
 
-func (c *InitCfg) apiAddrForPeer(i int) string {
+func apiAddrForPeer(nd IpfsNode, i int, portstart int) string {
 	ip := "127.0.0.1"
-	if c.NodeType == "docker" {
+	if _, ok := nd.(*DockerNode); ok {
 		ip = "0.0.0.0"
 	}
 
 	var port int
-	if c.PortStart != 0 {
-		port = c.PortStart + 1000 + i
+	if portstart != 0 {
+		port = portstart + 1000 + i
 	}
 
 	return fmt.Sprintf("/ip4/%s/tcp/%d", ip, port)
@@ -208,6 +207,23 @@ func (ns *NodeSpec) Load() (IpfsNode, error) {
 		}
 
 		return ln, nil
+	case "netns":
+		nsn := &NetnsNode{
+			Name: ns.Extra["name"].(string),
+			LocalNode: LocalNode{
+				Dir: ns.Dir,
+			},
+		}
+
+		if _, err := os.Stat(filepath.Join(nsn.Dir, "config")); err == nil {
+			pid, err := GetPeerID(nsn.Dir)
+			if err != nil {
+				return nil, err
+			}
+
+			nsn.PeerID = pid
+		}
+		return nsn, nil
 	case "docker":
 		imgi, ok := ns.Extra["image"]
 		if !ok {
@@ -243,23 +259,24 @@ func (ns *NodeSpec) Load() (IpfsNode, error) {
 		}
 
 		return dn, nil
+
 	default:
 		return nil, fmt.Errorf("unrecognized iptb node type")
 	}
 }
 
-func initSpecs(cfg *InitCfg) ([]*NodeSpec, error) {
+func InitSpecs(count int, typ string) ([]*NodeSpec, error) {
 	var specs []*NodeSpec
 	// generate node spec
 
-	for i := 0; i < cfg.Count; i++ {
+	for i := 0; i < count; i++ {
 		dir, err := IpfsDirN(i)
 		if err != nil {
 			return nil, err
 		}
 		var ns *NodeSpec
 
-		switch cfg.NodeType {
+		switch typ {
 		case "docker":
 			img := "ipfs/go-ipfs"
 			if altimg := os.Getenv("IPFS_DOCKER_IMAGE"); altimg != "" {
@@ -272,6 +289,14 @@ func initSpecs(cfg *InitCfg) ([]*NodeSpec, error) {
 					"image": img,
 				},
 			}
+		case "netns":
+			ns = &NodeSpec{
+				Type: "netns",
+				Dir:  dir,
+				Extra: map[string]interface{}{
+					"name": fmt.Sprintf("iptb-%d", i),
+				},
+			}
 		default:
 			ns = &NodeSpec{
 				Type: "local",
@@ -281,17 +306,55 @@ func initSpecs(cfg *InitCfg) ([]*NodeSpec, error) {
 		specs = append(specs, ns)
 	}
 
+	if typ == "netns" {
+		cfg := &netdef.Config{
+			Networks: []netdef.Network{
+				{
+					Name:    "iptb-base",
+					IpRange: "10.0.0.0/24",
+				},
+			},
+		}
+
+		for i := 0; i < count; i++ {
+			cfg.Peers = append(cfg.Peers, netdef.Peer{
+				Name: fmt.Sprintf("iptb-%d", i),
+				Links: map[string]netdef.LinkOpts{
+					"iptb-base": {},
+				},
+			})
+		}
+
+		if err := writeNetdefConfig(cfg); err != nil {
+			return nil, err
+		}
+	}
+
 	return specs, nil
 }
 
-func IpfsInit(cfg *InitCfg) error {
+func writeNetdefConfig(cfg *netdef.Config) error {
 	tbd, err := TestBedDir()
 	if err != nil {
 		return err
 	}
 
+	fi, err := os.Create(filepath.Join(tbd, "network.nd"))
+	if err != nil {
+		return err
+	}
+	defer fi.Close()
+
+	if err := json.NewEncoder(fi).Encode(cfg); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func AlreadyInitCheck(tbd string, force bool) error {
 	if _, err := os.Stat(filepath.Join(tbd, "nodespec")); !os.IsNotExist(err) {
-		if !cfg.Force && !YesNoPrompt("testbed nodes already exist, overwrite? [y/n]") {
+		if !force && !YesNoPrompt("testbed nodes already exist, overwrite? [y/n]") {
 			return nil
 		}
 		tbd, err := TestBedDir()
@@ -300,22 +363,10 @@ func IpfsInit(cfg *InitCfg) error {
 			return err
 		}
 	}
+	return nil
+}
 
-	specs, err := initSpecs(cfg)
-	if err != nil {
-		return err
-	}
-
-	nodes, err := NodesFromSpecs(specs)
-	if err != nil {
-		return err
-	}
-
-	err = WriteNodeSpecs(specs)
-	if err != nil {
-		return err
-	}
-
+func InitNodes(nodes []IpfsNode, cfg *InitCfg) error {
 	wait := sync.WaitGroup{}
 	for _, n := range nodes {
 		wait.Add(1)
@@ -358,7 +409,7 @@ func IpfsInit(cfg *InitCfg) error {
 	return nil
 }
 
-func ApplyConfigOverride(cfg *InitCfg) error {
+func ApplyConfigOverride(cfg *InitCfg, num int) error {
 	fir, err := os.Open(cfg.Override)
 	if err != nil {
 		return err
@@ -371,7 +422,7 @@ func ApplyConfigOverride(cfg *InitCfg) error {
 		return err
 	}
 
-	for i := 0; i < cfg.Count; i++ {
+	for i := 0; i < num; i++ {
 		err := applyOverrideToNode(configs, i)
 		if err != nil {
 			return err
@@ -405,7 +456,7 @@ func starBootstrap(nodes []IpfsNode, icfg *InitCfg) error {
 
 	bcfg.Bootstrap = nil
 	bcfg.Addresses.Swarm = []string{icfg.swarmAddrForPeer(0)}
-	bcfg.Addresses.API = icfg.apiAddrForPeer(0)
+	bcfg.Addresses.API = apiAddrForPeer(king, 0, icfg.PortStart)
 	bcfg.Addresses.Gateway = ""
 	bcfg.Discovery.MDNS.Enabled = icfg.Mdns
 
@@ -428,7 +479,7 @@ func starBootstrap(nodes []IpfsNode, icfg *InitCfg) error {
 		cfg.Addresses.Swarm = []string{
 			icfg.swarmAddrForPeer(i + 1),
 		}
-		cfg.Addresses.API = icfg.apiAddrForPeer(i + 1)
+		cfg.Addresses.API = apiAddrForPeer(nd, i+1, icfg.PortStart)
 
 		err = nd.WriteConfig(cfg)
 		if err != nil {
@@ -448,7 +499,7 @@ func clearBootstrapping(nodes []IpfsNode, icfg *InitCfg) error {
 		cfg.Bootstrap = nil
 		cfg.Addresses.Gateway = ""
 		cfg.Addresses.Swarm = []string{icfg.swarmAddrForPeer(i)}
-		cfg.Addresses.API = icfg.apiAddrForPeer(i)
+		cfg.Addresses.API = apiAddrForPeer(nd, i, icfg.PortStart)
 		cfg.Discovery.MDNS.Enabled = icfg.Mdns
 		err = nd.WriteConfig(cfg)
 		if err != nil {
