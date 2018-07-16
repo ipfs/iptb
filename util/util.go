@@ -14,6 +14,7 @@ import (
 	"time"
 
 	serial "github.com/ipfs/go-ipfs/repo/fsrepo/serialize"
+	netdef "github.com/whyrusleeping/go-netdef"
 	"github.com/whyrusleeping/stump"
 )
 
@@ -288,6 +289,14 @@ func InitSpecs(count int, typ string) ([]*NodeSpec, error) {
 					"image": img,
 				},
 			}
+		case "netns":
+			ns = &NodeSpec{
+				Type: "netns",
+				Dir:  dir,
+				Extra: map[string]interface{}{
+					"name": fmt.Sprintf("iptb-%d", i),
+				},
+			}
 		default:
 			ns = &NodeSpec{
 				Type: "local",
@@ -297,7 +306,50 @@ func InitSpecs(count int, typ string) ([]*NodeSpec, error) {
 		specs = append(specs, ns)
 	}
 
+	if typ == "netns" {
+		cfg := &netdef.Config{
+			Networks: []netdef.Network{
+				{
+					Name:    "iptb-base",
+					IpRange: "10.0.0.0/24",
+				},
+			},
+		}
+
+		for i := 0; i < count; i++ {
+			cfg.Peers = append(cfg.Peers, netdef.Peer{
+				Name: fmt.Sprintf("iptb-%d", i),
+				Links: map[string]netdef.LinkOpts{
+					"iptb-base": {},
+				},
+			})
+		}
+
+		if err := writeNetdefConfig(cfg); err != nil {
+			return nil, err
+		}
+	}
+
 	return specs, nil
+}
+
+func writeNetdefConfig(cfg *netdef.Config) error {
+	tbd, err := TestBedDir()
+	if err != nil {
+		return err
+	}
+
+	fi, err := os.Create(filepath.Join(tbd, "network.nd"))
+	if err != nil {
+		return err
+	}
+	defer fi.Close()
+
+	if err := json.NewEncoder(fi).Encode(cfg); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func AlreadyInitCheck(tbd string, force bool) error {
