@@ -14,11 +14,10 @@ import (
 	"syscall"
 	"time"
 
-	config "github.com/ipfs/go-ipfs/repo/config"
-	serial "github.com/ipfs/go-ipfs/repo/fsrepo/serialize"
-
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
+	config "gx/ipfs/QmSzU7M24odFR3icDsAK8P8SQoaELzDFv3n3fTPy2grrEL/go-ipfs-config"
+	serial "gx/ipfs/QmSzU7M24odFR3icDsAK8P8SQoaELzDFv3n3fTPy2grrEL/go-ipfs-config/serialize"
 )
 
 var ErrTimeout = errors.New("timeout")

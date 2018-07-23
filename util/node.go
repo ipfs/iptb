@@ -1,7 +1,7 @@
 package iptbutil
 
 import (
-	"github.com/ipfs/go-ipfs/repo/config"
+	"gx/ipfs/QmSzU7M24odFR3icDsAK8P8SQoaELzDFv3n3fTPy2grrEL/go-ipfs-config"
 )
 
 // IpfsNode defines the interface iptb requires to work

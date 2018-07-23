@@ -36,6 +36,12 @@
       "hash": "QmfEZa44SyWfyXpkbVfi19H1QpY73DU6E5omK2HbKXwqR6",
       "name": "go-ctrlnet",
       "version": "0.1.0"
+    },
+    {
+      "author": "magik6k",
+      "hash": "QmSzU7M24odFR3icDsAK8P8SQoaELzDFv3n3fTPy2grrEL",
+      "name": "go-ipfs-config",
+      "version": "0.2.0"
     }
   ],
   "gxVersion": "0.6.0",
