@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/whyrusleeping/stump"
-	serial "gx/ipfs/QmSzU7M24odFR3icDsAK8P8SQoaELzDFv3n3fTPy2grrEL/go-ipfs-config/serialize"
+	serial "github.com/ipfs/go-ipfs-config/serialize"
 )
 
 // GetNumNodes returns the number of testbed nodes configured in the testbed directory
