@@ -14,9 +14,8 @@ import (
 	"syscall"
 	"time"
 
-	config "github.com/ipfs/go-ipfs/repo/config"
-	serial "github.com/ipfs/go-ipfs/repo/fsrepo/serialize"
-
+	config "github.com/ipfs/go-ipfs-config"
+	serial "github.com/ipfs/go-ipfs-config/serialize"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr-net"
 )
