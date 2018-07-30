@@ -189,12 +189,12 @@ var startCmd = cli.Command{
 			for _, n := range nodes {
 				nd, err := util.LoadNodeN(n)
 				if err != nil {
-					return fmt.Errorf("failed to load local node: %s\n", err)
+					return fmt.Errorf("failed to load local node %d: %s\n", n, err)
 				}
 
 				err = nd.Start(extra)
 				if err != nil {
-					fmt.Println("failed to start node: ", err)
+					return fmt.Errorf("failed to start node %d: %s\n", n, err)
 				}
 			}
 			return nil
