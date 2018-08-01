@@ -1,4 +1,4 @@
-package plugindockeripfs
+package main
 
 import (
 	"bytes"
@@ -33,95 +33,97 @@ const (
 	attrIfName = "ifname"
 )
 
-type Dockeripfs struct {
+type DockerIpfs struct {
 	image       string
 	id          string
 	dir         string
 	repobuilder string
 	peerid      *cid.Cid
 	apiaddr     multiaddr.Multiaddr
-	swarmaddrs  []multiaddr.Multiaddr
-	lt          ipfs.ListenType
+	swarmaddr   multiaddr.Multiaddr
 	mdns        bool
 }
 
-func NewNode(dir string, attrs map[string]interface{}) (testbedi.Core, error) {
-	imagename := "ipfs/go-ipfs"
-	lt := ipfs.LT_TCP
-	mdns := false
+var NewNode testbedi.NewNodeFunc
+var GetAttrDesc testbedi.GetAttrDescFunc
+var GetAttrList testbedi.GetAttrListFunc
 
-	var repobuilder string
+func init() {
+	NewNode = func(dir string, attrs map[string]string) (testbedi.Core, error) {
+		imagename := "ipfs/go-ipfs"
+		mdns := false
 
-	if v, ok := attrs["image"]; ok {
-		imagename, ok = v.(string)
-
-		if !ok {
-			return nil, fmt.Errorf("Attr `image` should be a string")
-		}
-	}
-
-	if v, ok := attrs["repobuilder"]; ok {
-		repobuilder, ok = v.(string)
-
-		if !ok {
-			return nil, fmt.Errorf("Attr `repobuilder` should be a string")
-		}
-
-	} else {
-		ipfspath, err := exec.LookPath("ipfs")
+		apiaddr, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/5001")
 		if err != nil {
-			return nil, fmt.Errorf("No `repobuilder` provided, could not find ipfs in path")
+			return nil, err
 		}
 
-		repobuilder = ipfspath
-	}
-
-	if v, ok := attrs["listentype"]; ok {
-		ltstr, ok := v.(string)
-
-		if !ok {
-			return nil, fmt.Errorf("Attr `listentype` should be a string")
+		swarmaddr, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/4001")
+		if err != nil {
+			return nil, err
 		}
 
-		switch ltstr {
-		case "":
-			lt = ipfs.LT_TCP
-			break
-		case "ws":
-			lt = ipfs.LT_WS
-			break
-		case "utp":
-			lt = ipfs.LT_UTP
-			break
-		default:
-			return nil, fmt.Errorf("Unsupported `listentype` %s", ltstr)
+		var repobuilder string
+
+		if v, ok := attrs["image"]; ok {
+			imagename = v
 		}
+
+		if v, ok := attrs["repobuilder"]; ok {
+			repobuilder = v
+		} else {
+			ipfspath, err := exec.LookPath("ipfs")
+			if err != nil {
+				return nil, fmt.Errorf("No `repobuilder` provided, could not find ipfs in path")
+			}
+
+			repobuilder = ipfspath
+		}
+
+		if apiaddrstr, ok := attrs["apiaddr"]; ok {
+			var err error
+			apiaddr, err = multiaddr.NewMultiaddr(apiaddrstr)
+
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if swarmaddrstr, ok := attrs["swarmaddr"]; ok {
+			var err error
+			swarmaddr, err = multiaddr.NewMultiaddr(swarmaddrstr)
+
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if _, ok := attrs["mdns"]; ok {
+			mdns = true
+		}
+
+		return &DockerIpfs{
+			dir:         dir,
+			image:       imagename,
+			repobuilder: repobuilder,
+			apiaddr:     apiaddr,
+			swarmaddr:   swarmaddr,
+			mdns:        mdns,
+		}, nil
 	}
 
-	if _, ok := attrs["mdns"]; ok {
-		mdns = true
+	GetAttrList = func() []string {
+		return append(ipfs.GetAttrList(), attrIfName)
 	}
 
-	return &Dockeripfs{
-		dir:         dir,
-		image:       imagename,
-		repobuilder: repobuilder,
-		lt:          lt,
-		mdns:        mdns,
-	}, nil
-}
+	GetAttrDesc = func(attr string) (string, error) {
+		switch attr {
+		case attrIfName:
+			return "docker ifname", nil
+		}
 
-func GetAttrList() []string {
-	return append(ipfs.GetAttrList(), attrIfName)
-}
-
-func GetAttrDesc(attr string) (string, error) {
-	switch attr {
-	case attrIfName:
-		return "docker ifname", nil
+		return ipfs.GetAttrDesc(attr)
 	}
-
-	return ipfs.GetAttrDesc(attr)
 }
 
 func GetMetricList() []string {
@@ -134,7 +136,7 @@ func GetMetricDesc(attr string) (string, error) {
 
 /// Core Interface
 
-func (l *Dockeripfs) Init(ctx context.Context, agrs ...string) (testbedi.Output, error) {
+func (l *DockerIpfs) Init(ctx context.Context, agrs ...string) (testbedi.Output, error) {
 	env, err := l.env()
 	if err != nil {
 		return nil, fmt.Errorf("error getting env: %s", err)
@@ -147,19 +149,19 @@ func (l *Dockeripfs) Init(ctx context.Context, agrs ...string) (testbedi.Output,
 		return nil, fmt.Errorf("%s: %s", err, string(out))
 	}
 
-	icfg, err := l.GetConfig()
+	icfg, err := l.Config()
 	if err != nil {
 		return nil, err
 	}
 
 	lcfg, ok := icfg.(*config.Config)
 	if !ok {
-		return nil, fmt.Errorf("Error: GetConfig() is not an ipfs config")
+		return nil, fmt.Errorf("Error: Config() is not an ipfs config")
 	}
 
 	lcfg.Bootstrap = nil
-	lcfg.Addresses.Swarm = []string{ipfs.SwarmAddr(l.lt, "0.0.0.0", 4001)}
-	lcfg.Addresses.API = fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", 5001)
+	lcfg.Addresses.Swarm = []string{l.swarmaddr.String()}
+	lcfg.Addresses.API = l.apiaddr.String()
 	lcfg.Addresses.Gateway = ""
 	lcfg.Discovery.MDNS.Enabled = l.mdns
 
@@ -171,7 +173,7 @@ func (l *Dockeripfs) Init(ctx context.Context, agrs ...string) (testbedi.Output,
 	return nil, err
 }
 
-func (l *Dockeripfs) Start(ctx context.Context, wait bool, args ...string) (testbedi.Output, error) {
+func (l *DockerIpfs) Start(ctx context.Context, wait bool, args ...string) (testbedi.Output, error) {
 	alive, err := l.isAlive()
 	if err != nil {
 		return nil, err
@@ -206,7 +208,7 @@ func (l *Dockeripfs) Start(ctx context.Context, wait bool, args ...string) (test
 	return nil, nil
 }
 
-func (l *Dockeripfs) Stop(ctx context.Context, wait bool) error {
+func (l *DockerIpfs) Stop(ctx context.Context) error {
 	err := l.killContainer()
 	if err != nil {
 		return err
@@ -214,7 +216,7 @@ func (l *Dockeripfs) Stop(ctx context.Context, wait bool) error {
 	return os.Remove(filepath.Join(l.dir, "dockerid"))
 }
 
-func (l *Dockeripfs) RunCmd(ctx context.Context, stdin io.Reader, args ...string) (testbedi.Output, error) {
+func (l *DockerIpfs) RunCmd(ctx context.Context, stdin io.Reader, args ...string) (testbedi.Output, error) {
 	id, err := l.getID()
 	if err != nil {
 		return nil, err
@@ -275,18 +277,31 @@ func (l *Dockeripfs) RunCmd(ctx context.Context, stdin io.Reader, args ...string
 	return iptbutil.NewOutput(args, stdoutbytes, stderrbytes, exitcode, err), nil
 }
 
-func (l *Dockeripfs) Connect(ctx context.Context, n testbedi.Core) error {
+func (l *DockerIpfs) Connect(ctx context.Context, n testbedi.Core) error {
 	swarmaddrs, err := n.SwarmAddrs()
 	if err != nil {
 		return err
 	}
 
-	_, err = l.RunCmd(ctx, nil, "swarm", "connect", swarmaddrs[0])
+	output, err := l.RunCmd(ctx, nil, "ipfs", "swarm", "connect", swarmaddrs[1])
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	if output.ExitCode() != 0 {
+		out, err := ioutil.ReadAll(output.Stderr())
+		if err != nil {
+			return err
+		}
+
+		return fmt.Errorf("%s", string(out))
+	}
+
+	return nil
 }
 
-func (l *Dockeripfs) Shell(ctx context.Context, nodes []testbedi.Core) error {
+func (l *DockerIpfs) Shell(ctx context.Context, nodes []testbedi.Core) error {
 	id, err := l.getID()
 	if err != nil {
 		return err
@@ -317,7 +332,7 @@ func (l *Dockeripfs) Shell(ctx context.Context, nodes []testbedi.Core) error {
 	return cmd.Run()
 }
 
-func (l *Dockeripfs) String() string {
+func (l *DockerIpfs) String() string {
 	pcid, err := l.PeerID()
 	if err != nil {
 		return fmt.Sprintf("%s", l.Type())
@@ -325,39 +340,19 @@ func (l *Dockeripfs) String() string {
 	return fmt.Sprintf("%s", pcid[0:12])
 }
 
-func (l *Dockeripfs) Infof(format string, args ...interface{}) {
-	nformat := fmt.Sprintf("%s %s\n", l, format)
-	fmt.Fprintf(os.Stdout, nformat, args...)
-}
-
-func (l *Dockeripfs) Errorf(format string, args ...interface{}) {
-	nformat := fmt.Sprintf("%s %s\n", l, format)
-	fmt.Fprintf(os.Stderr, nformat, args...)
-}
-
-func (l *Dockeripfs) APIAddr() (string, error) {
-	if l.apiaddr != nil {
-		return l.apiaddr.String(), nil
-	}
+func (l *DockerIpfs) APIAddr() (string, error) {
 	return ipfs.GetAPIAddrFromRepo(l.dir)
 }
 
-func (l *Dockeripfs) SwarmAddrs() ([]string, error) {
-	var out []string
-	if l.swarmaddrs != nil {
-		for _, sa := range l.swarmaddrs {
-			out = append(out, sa.String())
-		}
-		return out, nil
-	}
+func (l *DockerIpfs) SwarmAddrs() ([]string, error) {
 	return ipfs.SwarmAddrs(l)
 }
 
-func (l *Dockeripfs) Dir() string {
+func (l *DockerIpfs) Dir() string {
 	return l.dir
 }
 
-func (l *Dockeripfs) PeerID() (string, error) {
+func (l *DockerIpfs) PeerID() (string, error) {
 	if l.peerid != nil {
 		return l.peerid.String(), nil
 	}
@@ -365,55 +360,59 @@ func (l *Dockeripfs) PeerID() (string, error) {
 	var err error
 	l.peerid, err = ipfs.GetPeerID(l)
 
-	return l.peerid.String(), err
+	if err != nil {
+		return "", err
+	}
+
+	return l.peerid.String(), nil
 }
 
 // Metric Interface
 
-func (l *Dockeripfs) GetMetricList() []string {
+func (l *DockerIpfs) GetMetricList() []string {
 	return GetMetricList()
 }
 
-func (l *Dockeripfs) GetMetricDesc(attr string) (string, error) {
+func (l *DockerIpfs) GetMetricDesc(attr string) (string, error) {
 	return GetMetricDesc(attr)
 }
 
-func (l *Dockeripfs) Metric(metric string) (string, error) {
+func (l *DockerIpfs) Metric(metric string) (string, error) {
 	return ipfs.GetMetric(l, metric)
 }
 
-func (l *Dockeripfs) Heartbeat() (map[string]string, error) {
+func (l *DockerIpfs) Heartbeat() (map[string]string, error) {
 	return nil, nil
 }
 
-func (l *Dockeripfs) Events() (io.ReadCloser, error) {
+func (l *DockerIpfs) Events() (io.ReadCloser, error) {
 	return ipfs.ReadLogs(l)
 }
 
-func (l *Dockeripfs) Logs() (io.ReadCloser, error) {
+func (l *DockerIpfs) Logs() (io.ReadCloser, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
 // Attribute Interface
 
-func (l *Dockeripfs) GetAttrList() []string {
+func (l *DockerIpfs) GetAttrList() []string {
 	return GetAttrList()
 }
 
-func (l *Dockeripfs) GetAttrDesc(attr string) (string, error) {
+func (l *DockerIpfs) GetAttrDesc(attr string) (string, error) {
 	return GetAttrDesc(attr)
 }
 
-func (l *Dockeripfs) GetAttr(attr string) (string, error) {
+func (l *DockerIpfs) Attr(attr string) (string, error) {
 	switch attr {
 	case attrIfName:
-		l.getInterfaceName()
+		return l.getInterfaceName()
 	}
 
 	return ipfs.GetAttr(l, attr)
 }
 
-func (l *Dockeripfs) SetAttr(attr string, val string) error {
+func (l *DockerIpfs) SetAttr(attr string, val string) error {
 	switch attr {
 	case "latency":
 		return l.setLatency(val)
@@ -428,31 +427,31 @@ func (l *Dockeripfs) SetAttr(attr string, val string) error {
 	}
 }
 
-func (l *Dockeripfs) StderrReader() (io.ReadCloser, error) {
+func (l *DockerIpfs) StderrReader() (io.ReadCloser, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func (l *Dockeripfs) StdoutReader() (io.ReadCloser, error) {
+func (l *DockerIpfs) StdoutReader() (io.ReadCloser, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func (l *Dockeripfs) GetConfig() (interface{}, error) {
+func (l *DockerIpfs) Config() (interface{}, error) {
 	return serial.Load(filepath.Join(l.dir, "config"))
 }
 
-func (l *Dockeripfs) WriteConfig(cfg interface{}) error {
+func (l *DockerIpfs) WriteConfig(cfg interface{}) error {
 	return serial.WriteConfigFile(filepath.Join(l.dir, "config"), cfg)
 }
 
-func (l *Dockeripfs) Type() string {
+func (l *DockerIpfs) Type() string {
 	return "ipfs"
 }
 
-func (l *Dockeripfs) Deployment() string {
+func (l *DockerIpfs) Deployment() string {
 	return "docker"
 }
 
-func (l *Dockeripfs) getID() (string, error) {
+func (l *DockerIpfs) getID() (string, error) {
 	if len(l.id) != 0 {
 		return l.id, nil
 	}
@@ -465,11 +464,11 @@ func (l *Dockeripfs) getID() (string, error) {
 	return string(b), nil
 }
 
-func (l *Dockeripfs) isAlive() (bool, error) {
+func (l *DockerIpfs) isAlive() (bool, error) {
 	return false, nil
 }
 
-func (l *Dockeripfs) env() ([]string, error) {
+func (l *DockerIpfs) env() ([]string, error) {
 	envs := os.Environ()
 	ipfspath := "IPFS_PATH=" + l.dir
 
@@ -482,7 +481,7 @@ func (l *Dockeripfs) env() ([]string, error) {
 	return append(envs, ipfspath), nil
 }
 
-func (l *Dockeripfs) killContainer() error {
+func (l *DockerIpfs) killContainer() error {
 	id, err := l.getID()
 	if err != nil {
 		return err
@@ -494,7 +493,7 @@ func (l *Dockeripfs) killContainer() error {
 	return nil
 }
 
-func (l *Dockeripfs) getInterfaceName() (string, error) {
+func (l *DockerIpfs) getInterfaceName() (string, error) {
 	out, err := l.RunCmd(context.TODO(), nil, "ip", "link")
 	if err != nil {
 		return "", err
@@ -532,7 +531,7 @@ func (l *Dockeripfs) getInterfaceName() (string, error) {
 	return "", fmt.Errorf("could not determine interface")
 }
 
-func (l *Dockeripfs) setLatency(val string) error {
+func (l *DockerIpfs) setLatency(val string) error {
 	dur, err := time.ParseDuration(val)
 	if err != nil {
 		return err
@@ -550,7 +549,7 @@ func (l *Dockeripfs) setLatency(val string) error {
 	return cnet.SetLink(ifn, settings)
 }
 
-func (l *Dockeripfs) setJitter(val string) error {
+func (l *DockerIpfs) setJitter(val string) error {
 	dur, err := time.ParseDuration(val)
 	if err != nil {
 		return err
@@ -569,7 +568,7 @@ func (l *Dockeripfs) setJitter(val string) error {
 }
 
 // set bandwidth (expects Mbps)
-func (l *Dockeripfs) setBandwidth(val string) error {
+func (l *DockerIpfs) setBandwidth(val string) error {
 	bw, err := strconv.ParseFloat(val, 32)
 	if err != nil {
 		return err
@@ -588,7 +587,7 @@ func (l *Dockeripfs) setBandwidth(val string) error {
 }
 
 // set packet loss percentage (dropped / total)
-func (l *Dockeripfs) setPacketLoss(val string) error {
+func (l *DockerIpfs) setPacketLoss(val string) error {
 	ratio, err := strconv.ParseUint(val, 10, 8)
 	if err != nil {
 		return err

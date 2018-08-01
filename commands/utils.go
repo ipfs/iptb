@@ -35,8 +35,8 @@ func isTerminatorPresent(c *cli.Context) bool {
 	return false
 }
 
-func parseAttrSlice(attrsraw []string) map[string]interface{} {
-	attrs := make(map[string]interface{})
+func parseAttrSlice(attrsraw []string) map[string]string {
+	attrs := make(map[string]string)
 	for _, attr := range attrsraw {
 		parts := strings.Split(attr, ",")
 

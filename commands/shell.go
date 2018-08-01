@@ -18,7 +18,7 @@ var ShellCmd = cli.Command{
 	ArgsUsage: "<node>",
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
-		flagTestbed := c.GlobalString("bench")
+		flagTestbed := c.GlobalString("testbed")
 
 		if !c.Args().Present() {
 			return NewUsageError("shell takes exactly 1 argument")
@@ -29,13 +29,13 @@ var ShellCmd = cli.Command{
 			return fmt.Errorf("parse err: %s", err)
 		}
 
-		tb := testbed.NewTestbed(path.Join(flagRoot, "benches", flagTestbed))
+		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 
 		nodes, err := tb.Nodes()
 		if err != nil {
 			return err
 		}
 
-		return nodes[i].Shell(context.TODO(), nodes)
+		return nodes[i].Shell(context.Background(), nodes)
 	},
 }

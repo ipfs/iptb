@@ -19,7 +19,7 @@ var EventsCmd = cli.Command{
 	ArgsUsage: "[node]",
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
-		flagTestbed := c.GlobalString("bench")
+		flagTestbed := c.GlobalString("testbed")
 
 		if !c.Args().Present() {
 			return NewUsageError("events takes exactly 1 argument")
@@ -30,7 +30,7 @@ var EventsCmd = cli.Command{
 			return fmt.Errorf("parse err: %s", err)
 		}
 
-		tb := testbed.NewTestbed(path.Join(flagRoot, "benches", flagTestbed))
+		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 
 		node, err := tb.Node(i)
 		if err != nil {

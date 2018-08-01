@@ -24,6 +24,7 @@ all: aggregate
 clean: clean-test-results
 	@echo "*** $@ ***"
 	-rm -rf $(BINS)
+	-rm -rf plugins
 
 clean-test-results:
 	@echo "*** $@ ***"
@@ -38,7 +39,7 @@ aggregate: clean-test-results $(T)
 	ls test-results/t*-*.sh.*.counts | $(AGGREGATE)
 
 # Needed dependencies.
-deps: sharness $(BINS)
+deps: sharness $(BINS) plugins
 
 sharness:
 	@echo "*** checking $@ ***"
@@ -49,6 +50,10 @@ find_go_files = $(shell find $(1) -name "*.go")
 bin/iptb: $(call find_go_files, $(IPTB_SRC)) BUILD-OPTIONS
 	@echo "*** installing $@ ***"
 	go build $(GOFLAGS) -o $@ $(IPTB_SRC)
+
+plugins:
+	make -C ../plugins all
+	make -C ../plugins install IPTB_ROOT=$(shell pwd)
 
 race:
 	make GOFLAGS=-race all

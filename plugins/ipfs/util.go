@@ -20,37 +20,16 @@ import (
 	"github.com/ipfs/iptb/testbed/interfaces"
 )
 
-type ListenType int
-
 const (
 	attrID   = "id"
 	attrPath = "path"
 
 	metricBwIn  = "bw_in"
 	metricBwOut = "bw_out"
-
-	LT_TCP ListenType = iota
-	LT_WS
-	LT_UTP
 )
 
 func InitIpfs(l testbedi.Core) error {
 	return nil
-}
-
-func SwarmAddr(lt ListenType, addr string, port int) string {
-	str := "/ip4/%s/tcp/%d"
-
-	switch lt {
-	case LT_WS:
-		str = "/ip4/%s/tcp/%d/ws"
-		break
-	case LT_UTP:
-		str = "/ip4/%s/udp/%d/utp"
-		break
-	}
-
-	return fmt.Sprintf(str, addr, port)
 }
 
 func GetAttr(l testbedi.Core, attr string) (string, error) {
@@ -88,7 +67,7 @@ func GetMetric(l testbedi.Core, metric string) (string, error) {
 }
 
 func GetPeerID(l testbedi.Config) (*cid.Cid, error) {
-	icfg, err := l.GetConfig()
+	icfg, err := l.Config()
 	if err != nil {
 		return nil, err
 	}

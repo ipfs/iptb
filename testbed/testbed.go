@@ -1,7 +1,6 @@
 package testbed
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -58,7 +57,7 @@ func (tb BasicTestbed) Name() string {
 }
 
 func AlreadyInitCheck(dir string, force bool) error {
-	if _, err := os.Stat(filepath.Join(dir, "nodespec")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(dir, "nodespec.json")); !os.IsNotExist(err) {
 		if !force && !iptbutil.YesNoPrompt("testbed nodes already exist, overwrite? [y/n]") {
 			return nil
 		}
@@ -69,7 +68,7 @@ func AlreadyInitCheck(dir string, force bool) error {
 	return nil
 }
 
-func BuildSpecs(base string, count int, typ string, attrs map[string]interface{}) ([]*NodeSpec, error) {
+func BuildSpecs(base string, count int, typ string, attrs map[string]string) ([]*NodeSpec, error) {
 	var specs []*NodeSpec
 
 	for i := 0; i < count; i++ {
@@ -153,16 +152,6 @@ func (tb *BasicTestbed) loadNodes() ([]testbedi.Core, error) {
 	return NodesFromSpecs(specs)
 }
 
-func InitNodes(nodes []testbedi.Core, args ...string) error {
-	for _, n := range nodes {
-		if _, err := n.Init(context.TODO(), args...); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func NodesFromSpecs(specs []*NodeSpec) ([]testbedi.Core, error) {
 	var out []testbedi.Core
 	for _, s := range specs {
@@ -176,7 +165,7 @@ func NodesFromSpecs(specs []*NodeSpec) ([]testbedi.Core, error) {
 }
 
 func ReadNodeSpecs(dir string) ([]*NodeSpec, error) {
-	data, err := ioutil.ReadFile(filepath.Join(dir, "nodespec"))
+	data, err := ioutil.ReadFile(filepath.Join(dir, "nodespec.json"))
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +185,7 @@ func WriteNodeSpecs(dir string, specs []*NodeSpec) error {
 		return err
 	}
 
-	fi, err := os.Create(filepath.Join(dir, "nodespec"))
+	fi, err := os.Create(filepath.Join(dir, "nodespec.json"))
 	if err != nil {
 		return err
 	}

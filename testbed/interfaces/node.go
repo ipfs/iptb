@@ -11,7 +11,7 @@ import (
 // Examples of attributes include: which binary to use, docker image, cpu/ram
 // limits, or any other information that may be required to property setup or
 // manage the node.
-type NewNodeFunc func(dir string, attrs map[string]interface{}) (Core, error)
+type NewNodeFunc func(dir string, attrs map[string]string) (Core, error)
 
 // GetAttrListFunc returns a list of attribute names that can be queried from
 // the node. These attributes may include those can be set from the NewNodeFunc,
@@ -34,8 +34,8 @@ type Libp2p interface {
 
 type Config interface {
 	Core
-	// GetConfig returns the configuration of the node
-	GetConfig() (interface{}, error)
+	// Config returns the configuration of the node
+	Config() (interface{}, error)
 	// WriteConfig writes the configuration of the node
 	WriteConfig(interface{}) error
 }
@@ -44,8 +44,8 @@ type Config interface {
 // environment the process executes in
 type Attribute interface {
 	Core
-	// GetAttr returns the value of attr
-	GetAttr(attr string) (string, error)
+	// Attr returns the value of attr
+	Attr(attr string) (string, error)
 	// SetAttr sets the attr to val
 	SetAttr(attr string, val string) error
 	// GetAttrList returns a list of attrs that can be retrieved
@@ -119,21 +119,17 @@ type Core interface {
 	// Allows a node to run any initialization it may require
 	// Ex: Installing additional dependencies / setting up configuration
 	Init(ctx context.Context, args ...string) (Output, error)
-	// Starts the node
+	// Starts the node, wait can be used to delay the return till the node is ready
+	// to accept commands
 	Start(ctx context.Context, wait bool, args ...string) (Output, error)
 	// Stops the node
-	Stop(ctx context.Context, wait bool) error
+	Stop(ctx context.Context) error
 	// Runs a command in the context of the node
 	RunCmd(ctx context.Context, stdin io.Reader, args ...string) (Output, error)
 	// Connect the node to another
 	Connect(ctx context.Context, n Core) error
 	// Starts a shell in the context of the node
 	Shell(ctx context.Context, ns []Core) error
-
-	// Writes a log line to stdout
-	Infof(format string, args ...interface{})
-	// Writes a log line to stderr
-	Errorf(format string, args ...interface{})
 
 	// Dir returns the iptb directory assigned to the node
 	Dir() string

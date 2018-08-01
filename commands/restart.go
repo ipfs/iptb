@@ -35,10 +35,10 @@ var RestartCmd = cli.Command{
 	},
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
-		flagTestbed := c.GlobalString("bench")
+		flagTestbed := c.GlobalString("testbed")
 		flagWait := c.Bool("wait")
 
-		tb := testbed.NewTestbed(path.Join(flagRoot, "benches", flagTestbed))
+		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 		nodes, err := tb.Nodes()
 		if err != nil {
 			return err
@@ -56,7 +56,7 @@ var RestartCmd = cli.Command{
 		}
 
 		runCmd := func(node testbedi.Core) (testbedi.Output, error) {
-			if err := node.Stop(context.Background(), flagWait); err != nil {
+			if err := node.Stop(context.Background()); err != nil {
 				return nil, err
 			}
 

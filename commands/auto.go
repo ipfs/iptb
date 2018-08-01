@@ -10,13 +10,13 @@ import (
 	"github.com/ipfs/iptb/testbed/interfaces"
 )
 
-var FastCmd = cli.Command{
-	Name:  "fast",
-	Usage: "create default bench and initialize",
+var AutoCmd = cli.Command{
+	Name:  "auto",
+	Usage: "create default testbed and initialize",
 	Description: `
-The fast command is a quick way to use iptb for simple configurations.
+The auto command is a quick way to use iptb for simple configurations.
 
-The fast command is similar to 'bench create' except in a few ways
+The auto command is similar to 'testbed create' except in a few ways
 
  - No attr options can be passed in
  - All nodes are initialize by default and ready to be started
@@ -24,8 +24,8 @@ The fast command is similar to 'bench create' except in a few ways
 
 The following two examples are equivalent
 
-$ iptb bench create -count 5 -type localipfs -init
-$ iptb fast         -count 5 -type localipfs
+$ iptb testbed create -count 5 -type <type> -init
+$ iptb auto           -count 5 -type <type>
 `,
 	ArgsUsage: "--type <type>",
 	Flags: []cli.Flag{
@@ -41,7 +41,6 @@ $ iptb fast         -count 5 -type localipfs
 		cli.StringFlag{
 			Name:  "type",
 			Usage: "kind of nodes to initialize",
-			Value: "localipfs",
 		},
 		cli.BoolFlag{
 			Name:  "start",
@@ -50,13 +49,13 @@ $ iptb fast         -count 5 -type localipfs
 	},
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
-		flagTestbed := c.GlobalString("bench")
+		flagTestbed := c.GlobalString("testbed")
 		flagType := c.String("type")
 		flagStart := c.Bool("start")
 		flagCount := c.Int("count")
 		flagForce := c.Bool("force")
 
-		tb := testbed.NewTestbed(path.Join(flagRoot, "benches", flagTestbed))
+		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 
 		if err := testbed.AlreadyInitCheck(tb.Dir(), flagForce); err != nil {
 			return err

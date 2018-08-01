@@ -5,37 +5,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 
 	cli "github.com/urfave/cli"
 
 	"github.com/ipfs/iptb/commands"
-	"github.com/ipfs/iptb/plugins/ipfs/docker"
-	"github.com/ipfs/iptb/plugins/ipfs/local"
 	"github.com/ipfs/iptb/testbed"
 )
-
-func init() {
-	plglocalipfs := testbed.IptbPlugin{
-		From:        "<builtin>",
-		NewNode:     pluginlocalipfs.NewNode,
-		PluginName:  pluginlocalipfs.PluginName,
-		GetAttrList: pluginlocalipfs.GetAttrList,
-		GetAttrDesc: pluginlocalipfs.GetAttrDesc,
-		BuiltIn:     true,
-	}
-
-	plgdockeripfs := testbed.IptbPlugin{
-		From:        "<builtin>",
-		NewNode:     plugindockeripfs.NewNode,
-		PluginName:  plugindockeripfs.PluginName,
-		GetAttrList: plugindockeripfs.GetAttrList,
-		GetAttrDesc: plugindockeripfs.GetAttrDesc,
-		BuiltIn:     true,
-	}
-
-	testbed.RegisterPlugin(plgdockeripfs, false)
-	testbed.RegisterPlugin(plglocalipfs, false)
-}
 
 func loadPlugins(dir string) error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -70,13 +46,13 @@ func loadPlugins(dir string) error {
 
 func main() {
 	app := cli.NewApp()
-	app.Usage = "iptb is a tool for managing test clusters of ipfs nodes"
+	app.Usage = "iptb is a tool for managing test clusters of libp2p nodes"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:   "bench",
+			Name:   "testbed",
 			Value:  "default",
-			EnvVar: "IPTB_BENCH",
-			Usage:  "Name of bench to use under IPTB_ROOT",
+			EnvVar: "IPTB_TESTBED",
+			Usage:  "Name of testbed to use under IPTB_ROOT",
 		},
 		cli.StringFlag{
 			Name:   "IPTB_ROOT",
@@ -87,24 +63,29 @@ func main() {
 	app.Before = func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
 
-		if len(flagRoot) != 0 {
-			return nil
+		if len(flagRoot) == 0 {
+			home := os.Getenv("HOME")
+			if len(home) == 0 {
+				return fmt.Errorf("environment variable HOME not set")
+			}
+
+			flagRoot = path.Join(home, "testbed")
+		} else {
+			var err error
+
+			flagRoot, err = filepath.Abs(flagRoot)
+			if err != nil {
+				return err
+			}
 		}
 
-		home := os.Getenv("HOME")
-		if len(home) == 0 {
-			return fmt.Errorf("environment variable HOME not set")
-		}
+		c.Set("IPTB_ROOT", flagRoot)
 
-		root := path.Join(home, "testbench")
-
-		c.Set("IPTB_ROOT", root)
-
-		return loadPlugins(path.Join(root, "plugins"))
+		return loadPlugins(path.Join(flagRoot, "plugins"))
 	}
 	app.Commands = []cli.Command{
-		commands.FastCmd,
-		commands.BenchCmd,
+		commands.AutoCmd,
+		commands.TestbedCmd,
 
 		commands.InitCmd,
 		commands.StartCmd,

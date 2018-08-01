@@ -34,7 +34,7 @@ var AttrSetCmd = cli.Command{
 	},
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
-		flagTestbed := c.GlobalString("bench")
+		flagTestbed := c.GlobalString("testbed")
 		flagSave := c.Bool("save")
 
 		if c.NArg() != 3 {
@@ -50,7 +50,7 @@ var AttrSetCmd = cli.Command{
 			return fmt.Errorf("parse err: %s", err)
 		}
 
-		tb := testbed.NewTestbed(path.Join(flagRoot, "benches", flagTestbed))
+		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 
 		node, err := tb.Node(i)
 		if err != nil {
@@ -89,7 +89,7 @@ var AttrGetCmd = cli.Command{
 	ArgsUsage: "<node> <attr>",
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
-		flagTestbed := c.GlobalString("bench")
+		flagTestbed := c.GlobalString("testbed")
 
 		if c.NArg() != 2 {
 			return NewUsageError("get takes exactly 2 argument")
@@ -103,7 +103,7 @@ var AttrGetCmd = cli.Command{
 			return fmt.Errorf("parse err: %s", err)
 		}
 
-		tb := testbed.NewTestbed(path.Join(flagRoot, "benches", flagTestbed))
+		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 
 		node, err := tb.Node(i)
 		if err != nil {
@@ -115,7 +115,7 @@ var AttrGetCmd = cli.Command{
 			return fmt.Errorf("node does not implement attributes")
 		}
 
-		value, err := attrNode.GetAttr(argAttr)
+		value, err := attrNode.Attr(argAttr)
 		if err != nil {
 			return err
 		}
@@ -138,7 +138,7 @@ var AttrListCmd = cli.Command{
 	},
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
-		flagTestbed := c.GlobalString("bench")
+		flagTestbed := c.GlobalString("testbed")
 		flagType := c.String("type")
 
 		if !c.Args().Present() && len(flagType) == 0 {
@@ -151,7 +151,7 @@ var AttrListCmd = cli.Command{
 				return fmt.Errorf("parse err: %s", err)
 			}
 
-			tb := testbed.NewTestbed(path.Join(flagRoot, "benches", flagTestbed))
+			tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 
 			spec, err := tb.Spec(i)
 			if err != nil {

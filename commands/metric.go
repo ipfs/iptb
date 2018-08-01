@@ -31,14 +31,14 @@ var MetricCmd = cli.Command{
 
 func metricList(c *cli.Context) error {
 	flagRoot := c.GlobalString("IPTB_ROOT")
-	flagTestbed := c.GlobalString("bench")
+	flagTestbed := c.GlobalString("testbed")
 
 	i, err := strconv.Atoi(c.Args().First())
 	if err != nil {
 		return fmt.Errorf("parse err: %s", err)
 	}
 
-	tb := testbed.NewTestbed(path.Join(flagRoot, "benches", flagTestbed))
+	tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 
 	node, err := tb.Node(i)
 	if err != nil {
@@ -65,7 +65,7 @@ func metricList(c *cli.Context) error {
 
 func metricGet(c *cli.Context) error {
 	flagRoot := c.GlobalString("IPTB_ROOT")
-	flagTestbed := c.GlobalString("bench")
+	flagTestbed := c.GlobalString("testbed")
 
 	argNode := c.Args()[0]
 	argMetric := c.Args()[1]
@@ -75,7 +75,7 @@ func metricGet(c *cli.Context) error {
 		return fmt.Errorf("parse err: %s", err)
 	}
 
-	tb := testbed.NewTestbed(path.Join(flagRoot, "benches", flagTestbed))
+	tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 
 	node, err := tb.Node(i)
 	if err != nil {

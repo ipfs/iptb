@@ -9,17 +9,17 @@ import (
 	"github.com/ipfs/iptb/testbed"
 )
 
-var BenchCmd = cli.Command{
-	Name:  "bench",
-	Usage: "create, remove, list bench setups",
+var TestbedCmd = cli.Command{
+	Name:  "testbed",
+	Usage: "manage testbeds",
 	Subcommands: []cli.Command{
-		BenchCreateCmd,
+		TestbedCreateCmd,
 	},
 }
 
-var BenchCreateCmd = cli.Command{
+var TestbedCreateCmd = cli.Command{
 	Name:      "create",
-	Usage:     "create test bench",
+	Usage:     "create testbed",
 	ArgsUsage: "--type <type>",
 	Flags: []cli.Flag{
 		cli.IntFlag{
@@ -29,16 +29,15 @@ var BenchCreateCmd = cli.Command{
 		},
 		cli.BoolFlag{
 			Name:  "force",
-			Usage: "force overwrite of existing nodespecs",
+			Usage: "force overwrite of existing testbed",
 		},
 		cli.StringFlag{
 			Name:  "type",
 			Usage: "kind of nodes to initialize",
-			Value: "localipfs",
 		},
 		cli.StringSliceFlag{
 			Name:  "attr",
-			Usage: "specify addition attributes for nodespecs",
+			Usage: "specify addition attributes for nodes",
 		},
 		cli.BoolFlag{
 			Name:  "init",
@@ -47,7 +46,7 @@ var BenchCreateCmd = cli.Command{
 	},
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
-		flagTestbed := c.GlobalString("bench")
+		flagTestbed := c.GlobalString("testbed")
 		flagType := c.String("type")
 		flagInit := c.Bool("init")
 		flagCount := c.Int("count")
@@ -55,7 +54,7 @@ var BenchCreateCmd = cli.Command{
 		flagAttrs := c.StringSlice("attr")
 
 		attrs := parseAttrSlice(flagAttrs)
-		tb := testbed.NewTestbed(path.Join(flagRoot, "benches", flagTestbed))
+		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 
 		if err := testbed.AlreadyInitCheck(tb.Dir(), flagForce); err != nil {
 			return err
@@ -77,7 +76,7 @@ var BenchCreateCmd = cli.Command{
 			}
 
 			for _, n := range nodes {
-				if _, err := n.Init(context.TODO()); err != nil {
+				if _, err := n.Init(context.Background()); err != nil {
 					return err
 				}
 			}

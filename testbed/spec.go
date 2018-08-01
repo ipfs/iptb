@@ -11,7 +11,7 @@ import (
 type NodeSpec struct {
 	Type  string
 	Dir   string
-	Attrs map[string]interface{}
+	Attrs map[string]string
 }
 
 // IptbPlugin contains exported symbols from loaded plugins
@@ -123,17 +123,17 @@ func loadPlugin(path string) (*IptbPlugin, error) {
 		return nil, err
 	}
 
-	var plg *IptbPlugin
+	var plg IptbPlugin
 
-	if err := loadPluginCore(pl, plg); err != nil {
+	if err := loadPluginCore(pl, &plg); err != nil {
 		return nil, err
 	}
 
-	if ok, err := loadPluginAttr(pl, plg); ok && err != nil {
+	if ok, err := loadPluginAttr(pl, &plg); ok && err != nil {
 		return nil, err
 	}
 
-	return plg, nil
+	return &plg, nil
 }
 
 // Load uses plugins registered with RegisterPlugin to construct a Core node
@@ -149,15 +149,15 @@ func (ns *NodeSpec) Load() (testbedi.Core, error) {
 }
 
 // SetAttr sets an attribute on the NodeSpec
-func (ns *NodeSpec) SetAttr(attr string, val interface{}) {
+func (ns *NodeSpec) SetAttr(attr string, val string) {
 	ns.Attrs[attr] = val
 }
 
 // GetAttr gets an attribute from the NodeSpec
-func (ns *NodeSpec) GetAttr(attr string) (interface{}, error) {
+func (ns *NodeSpec) GetAttr(attr string) (string, error) {
 	if v, ok := ns.Attrs[attr]; ok {
 		return v, nil
 	}
 
-	return nil, fmt.Errorf("Attr not set")
+	return "", fmt.Errorf("Attr not set")
 }

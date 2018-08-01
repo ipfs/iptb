@@ -30,11 +30,11 @@ var LogsCmd = cli.Command{
 	},
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
-		flagTestbed := c.GlobalString("bench")
+		flagTestbed := c.GlobalString("testbed")
 		flagErr := c.BoolT("err")
 		flagOut := c.BoolT("out")
 
-		tb := testbed.NewTestbed(path.Join(flagRoot, "benches", flagTestbed))
+		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 		nodes, err := tb.Nodes()
 		if err != nil {
 			return err

@@ -4,23 +4,24 @@ test_description="iptb stop tests"
 
 . lib/test-lib.sh
 
-IPTB_ROOT=.
+export IPTB_ROOT=.
+ln -s ../plugins $IPTB_ROOT/plugins
 
-test_expect_success "iptb init works" '
-	../bin/iptb init -n 3
+test_expect_success "iptb auto works" '
+	../bin/iptb auto -count 3 -type localipfs
 '
 
 test_expect_success "iptb start works" '
-	../bin/iptb start --args --debug
+	../bin/iptb start --wait -- --debug
 '
 
 test_expect_success "iptb stop works" '
-	../bin/iptb stop
+	../bin/iptb stop && sleep 1
 '
 
 for i in {0..2}; do
 	test_expect_success "daemon '$i' was shut down gracefully" '
-		cat testbed/'$i'/daemon.stderr | tail -1 | grep "Gracefully shut down daemon"
+		cat testbeds/default/'$i'/daemon.stderr | tail -1 | grep "Gracefully shut down daemon"
 	'
 done
 

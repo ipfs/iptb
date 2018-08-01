@@ -1,4 +1,4 @@
-package pluginlocalipfs
+package main
 
 import (
 	"context"
@@ -27,63 +27,75 @@ var errTimeout = errors.New("timeout")
 
 var PluginName = "localipfs"
 
-type Localipfs struct {
-	dir        string
-	peerid     *cid.Cid
-	apiaddr    multiaddr.Multiaddr
-	swarmaddrs []multiaddr.Multiaddr
-	lt         ipfs.ListenType
-	mdns       bool
+type LocalIpfs struct {
+	dir       string
+	peerid    *cid.Cid
+	apiaddr   multiaddr.Multiaddr
+	swarmaddr multiaddr.Multiaddr
+	mdns      bool
 }
 
-func NewNode(dir string, attrs map[string]interface{}) (testbedi.Core, error) {
-	if _, err := exec.LookPath("ipfs"); err != nil {
-		return nil, err
-	}
+var NewNode testbedi.NewNodeFunc
+var GetAttrDesc testbedi.GetAttrDescFunc
+var GetAttrList testbedi.GetAttrListFunc
 
-	lt := ipfs.LT_TCP
-	mdns := false
+func init() {
+	NewNode = func(dir string, attrs map[string]string) (testbedi.Core, error) {
+		mdns := false
 
-	if v, ok := attrs["listentype"]; ok {
-		ltstr, ok := v.(string)
-
-		if !ok {
-			return nil, fmt.Errorf("Attr `listentype` should be a string")
+		if _, err := exec.LookPath("ipfs"); err != nil {
+			return nil, err
 		}
 
-		switch ltstr {
-		case "":
-			lt = ipfs.LT_TCP
-			break
-		case "ws":
-			lt = ipfs.LT_WS
-			break
-		case "utp":
-			lt = ipfs.LT_UTP
-			break
-		default:
-			return nil, fmt.Errorf("Unsupported `listentype` %s", ltstr)
+		apiaddr, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+		if err != nil {
+			return nil, err
 		}
+
+		swarmaddr, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+		if err != nil {
+			return nil, err
+		}
+
+		if apiaddrstr, ok := attrs["apiaddr"]; ok {
+			var err error
+			apiaddr, err = multiaddr.NewMultiaddr(apiaddrstr)
+
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if swarmaddrstr, ok := attrs["swarmaddr"]; ok {
+			var err error
+			swarmaddr, err = multiaddr.NewMultiaddr(swarmaddrstr)
+
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if _, ok := attrs["mdns"]; ok {
+			mdns = true
+		}
+
+		return &LocalIpfs{
+			dir:       dir,
+			apiaddr:   apiaddr,
+			swarmaddr: swarmaddr,
+			mdns:      mdns,
+		}, nil
+
 	}
 
-	if _, ok := attrs["mdns"]; ok {
-		mdns = true
+	GetAttrList = func() []string {
+		return ipfs.GetAttrList()
 	}
 
-	return &Localipfs{
-		dir:  dir,
-		lt:   lt,
-		mdns: mdns,
-	}, nil
+	GetAttrDesc = func(attr string) (string, error) {
+		return ipfs.GetAttrDesc(attr)
+	}
 
-}
-
-func GetAttrList() []string {
-	return ipfs.GetAttrList()
-}
-
-func GetAttrDesc(attr string) (string, error) {
-	return ipfs.GetAttrDesc(attr)
 }
 
 func GetMetricList() []string {
@@ -96,14 +108,14 @@ func GetMetricDesc(attr string) (string, error) {
 
 /// TestbedNode Interface
 
-func (l *Localipfs) Init(ctx context.Context, agrs ...string) (testbedi.Output, error) {
+func (l *LocalIpfs) Init(ctx context.Context, agrs ...string) (testbedi.Output, error) {
 	agrs = append([]string{"ipfs", "init"}, agrs...)
 	output, oerr := l.RunCmd(ctx, nil, agrs...)
 	if oerr != nil {
 		return nil, oerr
 	}
 
-	icfg, err := l.GetConfig()
+	icfg, err := l.Config()
 	if err != nil {
 		return nil, err
 	}
@@ -111,8 +123,8 @@ func (l *Localipfs) Init(ctx context.Context, agrs ...string) (testbedi.Output, 
 	lcfg := icfg.(*config.Config)
 
 	lcfg.Bootstrap = nil
-	lcfg.Addresses.Swarm = []string{ipfs.SwarmAddr(l.lt, "127.0.0.1", 0)}
-	lcfg.Addresses.API = fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", 0)
+	lcfg.Addresses.Swarm = []string{l.swarmaddr.String()}
+	lcfg.Addresses.API = l.apiaddr.String()
 	lcfg.Addresses.Gateway = ""
 	lcfg.Discovery.MDNS.Enabled = l.mdns
 
@@ -124,7 +136,7 @@ func (l *Localipfs) Init(ctx context.Context, agrs ...string) (testbedi.Output, 
 	return output, oerr
 }
 
-func (l *Localipfs) Start(ctx context.Context, wait bool, args ...string) (testbedi.Output, error) {
+func (l *LocalIpfs) Start(ctx context.Context, wait bool, args ...string) (testbedi.Output, error) {
 	alive, err := l.isAlive()
 	if err != nil {
 		return nil, err
@@ -171,10 +183,14 @@ func (l *Localipfs) Start(ctx context.Context, wait bool, args ...string) (testb
 		return nil, err
 	}
 
-	return nil, ipfs.WaitOnAPI(l)
+	if wait {
+		return nil, ipfs.WaitOnAPI(l)
+	}
+
+	return nil, nil
 }
 
-func (l *Localipfs) Stop(ctx context.Context, wait bool) error {
+func (l *LocalIpfs) Stop(ctx context.Context) error {
 	pid, err := l.getPID()
 	if err != nil {
 		return fmt.Errorf("error killing daemon %s: %s", l.dir, err)
@@ -187,7 +203,7 @@ func (l *Localipfs) Stop(ctx context.Context, wait bool) error {
 
 	waitch := make(chan struct{}, 1)
 	go func() {
-		p.Wait() //TODO: pass return state
+		p.Wait()
 		waitch <- struct{}{}
 	}()
 
@@ -214,18 +230,10 @@ func (l *Localipfs) Stop(ctx context.Context, wait bool) error {
 		return err
 	}
 
-	for {
-		err := p.Signal(syscall.Signal(0))
-		if err != nil {
-			break
-		}
-		time.Sleep(time.Millisecond * 10)
-	}
-
-	return nil
+	return fmt.Errorf("Could not stop localipfs node with pid %d", pid)
 }
 
-func (l *Localipfs) RunCmd(ctx context.Context, stdin io.Reader, args ...string) (testbedi.Output, error) {
+func (l *LocalIpfs) RunCmd(ctx context.Context, stdin io.Reader, args ...string) (testbedi.Output, error) {
 	env, err := l.env()
 
 	if err != nil {
@@ -247,6 +255,9 @@ func (l *Localipfs) RunCmd(ctx context.Context, stdin io.Reader, args ...string)
 	}
 
 	err = cmd.Start()
+	if err != nil {
+		return nil, err
+	}
 
 	stderrbytes, err := ioutil.ReadAll(stderr)
 	if err != nil {
@@ -279,18 +290,31 @@ func (l *Localipfs) RunCmd(ctx context.Context, stdin io.Reader, args ...string)
 	return iptbutil.NewOutput(args, stdoutbytes, stderrbytes, exitcode, err), nil
 }
 
-func (l *Localipfs) Connect(ctx context.Context, tbn testbedi.Core) error {
+func (l *LocalIpfs) Connect(ctx context.Context, tbn testbedi.Core) error {
 	swarmaddrs, err := tbn.SwarmAddrs()
 	if err != nil {
 		return err
 	}
 
-	_, err = l.RunCmd(ctx, nil, "ipfs", "swarm", "connect", swarmaddrs[0])
+	output, err := l.RunCmd(ctx, nil, "ipfs", "swarm", "connect", swarmaddrs[0])
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	if output.ExitCode() != 0 {
+		out, err := ioutil.ReadAll(output.Stderr())
+		if err != nil {
+			return err
+		}
+
+		return fmt.Errorf("%s", string(out))
+	}
+
+	return nil
 }
 
-func (l *Localipfs) Shell(ctx context.Context, nodes []testbedi.Core) error {
+func (l *LocalIpfs) Shell(ctx context.Context, nodes []testbedi.Core) error {
 	shell := os.Getenv("SHELL")
 	if shell == "" {
 		return fmt.Errorf("no shell found")
@@ -323,7 +347,7 @@ func (l *Localipfs) Shell(ctx context.Context, nodes []testbedi.Core) error {
 	return syscall.Exec(shell, []string{shell}, nenvs)
 }
 
-func (l *Localipfs) String() string {
+func (l *LocalIpfs) String() string {
 	pcid, err := l.PeerID()
 	if err != nil {
 		return fmt.Sprintf("%s", l.Type())
@@ -331,39 +355,19 @@ func (l *Localipfs) String() string {
 	return fmt.Sprintf("%s", pcid[0:12])
 }
 
-func (l *Localipfs) Infof(format string, args ...interface{}) {
-	nformat := fmt.Sprintf("%s %s\n", l, format)
-	fmt.Fprintf(os.Stdout, nformat, args...)
-}
-
-func (l *Localipfs) Errorf(format string, args ...interface{}) {
-	nformat := fmt.Sprintf("%s %s\n", l, format)
-	fmt.Fprintf(os.Stderr, nformat, args...)
-}
-
-func (l *Localipfs) APIAddr() (string, error) {
-	if l.apiaddr != nil {
-		return l.apiaddr.String(), nil
-	}
+func (l *LocalIpfs) APIAddr() (string, error) {
 	return ipfs.GetAPIAddrFromRepo(l.dir)
 }
 
-func (l *Localipfs) SwarmAddrs() ([]string, error) {
-	var out []string
-	if l.swarmaddrs != nil {
-		for _, sa := range l.swarmaddrs {
-			out = append(out, sa.String())
-		}
-		return out, nil
-	}
+func (l *LocalIpfs) SwarmAddrs() ([]string, error) {
 	return ipfs.SwarmAddrs(l)
 }
 
-func (l *Localipfs) Dir() string {
+func (l *LocalIpfs) Dir() string {
 	return l.dir
 }
 
-func (l *Localipfs) PeerID() (string, error) {
+func (l *LocalIpfs) PeerID() (string, error) {
 	if l.peerid != nil {
 		return l.peerid.String(), nil
 	}
@@ -371,82 +375,86 @@ func (l *Localipfs) PeerID() (string, error) {
 	var err error
 	l.peerid, err = ipfs.GetPeerID(l)
 
-	return l.peerid.String(), err
+	if err != nil {
+		return "", err
+	}
+
+	return l.peerid.String(), nil
 }
 
 /// Metric Interface
 
-func (l *Localipfs) GetMetricList() []string {
+func (l *LocalIpfs) GetMetricList() []string {
 	return GetMetricList()
 }
 
-func (l *Localipfs) GetMetricDesc(attr string) (string, error) {
+func (l *LocalIpfs) GetMetricDesc(attr string) (string, error) {
 	return GetMetricDesc(attr)
 }
 
-func (l *Localipfs) Metric(metric string) (string, error) {
+func (l *LocalIpfs) Metric(metric string) (string, error) {
 	return ipfs.GetMetric(l, metric)
 }
 
-func (l *Localipfs) Heartbeat() (map[string]string, error) {
+func (l *LocalIpfs) Heartbeat() (map[string]string, error) {
 	return nil, nil
 }
 
-func (l *Localipfs) Events() (io.ReadCloser, error) {
+func (l *LocalIpfs) Events() (io.ReadCloser, error) {
 	return ipfs.ReadLogs(l)
 }
 
-func (l *Localipfs) Logs() (io.ReadCloser, error) {
+func (l *LocalIpfs) Logs() (io.ReadCloser, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
 // Attribute Interface
 
-func (l *Localipfs) GetAttrList() []string {
+func (l *LocalIpfs) GetAttrList() []string {
 	return GetAttrList()
 }
 
-func (l *Localipfs) GetAttrDesc(attr string) (string, error) {
+func (l *LocalIpfs) GetAttrDesc(attr string) (string, error) {
 	return GetAttrDesc(attr)
 }
 
-func (l *Localipfs) GetAttr(attr string) (string, error) {
+func (l *LocalIpfs) GetAttr(attr string) (string, error) {
 	return ipfs.GetAttr(l, attr)
 }
 
-func (l *Localipfs) SetAttr(string, string) error {
+func (l *LocalIpfs) SetAttr(string, string) error {
 	return fmt.Errorf("no attribute to set")
 }
 
-func (l *Localipfs) StderrReader() (io.ReadCloser, error) {
+func (l *LocalIpfs) StderrReader() (io.ReadCloser, error) {
 	return l.readerFor("daemon.stderr")
 }
 
-func (l *Localipfs) StdoutReader() (io.ReadCloser, error) {
+func (l *LocalIpfs) StdoutReader() (io.ReadCloser, error) {
 	return l.readerFor("daemon.stdout")
 }
 
-func (l *Localipfs) GetConfig() (interface{}, error) {
+func (l *LocalIpfs) Config() (interface{}, error) {
 	return serial.Load(filepath.Join(l.dir, "config"))
 }
 
-func (l *Localipfs) WriteConfig(cfg interface{}) error {
+func (l *LocalIpfs) WriteConfig(cfg interface{}) error {
 	return serial.WriteConfigFile(filepath.Join(l.dir, "config"), cfg)
 }
 
-func (l *Localipfs) Type() string {
+func (l *LocalIpfs) Type() string {
 	return "ipfs"
 }
 
-func (l *Localipfs) Deployment() string {
+func (l *LocalIpfs) Deployment() string {
 	return "local"
 }
 
-func (l *Localipfs) readerFor(file string) (io.ReadCloser, error) {
+func (l *LocalIpfs) readerFor(file string) (io.ReadCloser, error) {
 	return os.OpenFile(filepath.Join(l.dir, file), os.O_RDONLY, 0)
 }
 
-func (l *Localipfs) signalAndWait(p *os.Process, waitch <-chan struct{}, signal os.Signal, t time.Duration) error {
+func (l *LocalIpfs) signalAndWait(p *os.Process, waitch <-chan struct{}, signal os.Signal, t time.Duration) error {
 	err := p.Signal(signal)
 	if err != nil {
 		return fmt.Errorf("error killing daemon %s: %s", l.dir, err)
@@ -460,7 +468,7 @@ func (l *Localipfs) signalAndWait(p *os.Process, waitch <-chan struct{}, signal 
 	}
 }
 
-func (l *Localipfs) getPID() (int, error) {
+func (l *LocalIpfs) getPID() (int, error) {
 	b, err := ioutil.ReadFile(filepath.Join(l.dir, "daemon.pid"))
 	if err != nil {
 		return -1, err
@@ -469,7 +477,7 @@ func (l *Localipfs) getPID() (int, error) {
 	return strconv.Atoi(string(b))
 }
 
-func (l *Localipfs) isAlive() (bool, error) {
+func (l *LocalIpfs) isAlive() (bool, error) {
 	pid, err := l.getPID()
 	if os.IsNotExist(err) {
 		return false, nil
@@ -490,7 +498,7 @@ func (l *Localipfs) isAlive() (bool, error) {
 	return false, nil
 }
 
-func (l *Localipfs) env() ([]string, error) {
+func (l *LocalIpfs) env() ([]string, error) {
 	envs := os.Environ()
 	ipfspath := "IPFS_PATH=" + l.dir
 

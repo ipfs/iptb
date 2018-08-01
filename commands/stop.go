@@ -16,18 +16,11 @@ var StopCmd = cli.Command{
 	Name:      "stop",
 	Usage:     "stop specified nodes (or all)",
 	ArgsUsage: "[nodes]",
-	Flags: []cli.Flag{
-		cli.BoolFlag{
-			Name:  "wait",
-			Usage: "wait for nodes to stop before returning",
-		},
-	},
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
-		flagTestbed := c.GlobalString("bench")
-		flagWait := c.Bool("wait")
+		flagTestbed := c.GlobalString("testbed")
 
-		tb := testbed.NewTestbed(path.Join(flagRoot, "benches", flagTestbed))
+		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 		nodes, err := tb.Nodes()
 		if err != nil {
 			return err
@@ -45,7 +38,7 @@ var StopCmd = cli.Command{
 		}
 
 		runCmd := func(node testbedi.Core) (testbedi.Output, error) {
-			return nil, node.Stop(context.Background(), flagWait)
+			return nil, node.Stop(context.Background())
 		}
 
 		results, err := mapWithOutput(list, nodes, runCmd)
