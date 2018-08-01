@@ -7,6 +7,6 @@ import (
 	"syscall"
 )
 
-func setupOpt(cmd *exec.Cmd) {
+func SetupOpt(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 }
