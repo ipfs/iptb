@@ -6,6 +6,6 @@ import (
 	"os/exec"
 )
 
-func setupOpt(cmd *exec.Cmd) {
+func SetupOpt(cmd *exec.Cmd) {
 	// Do nothing
 }

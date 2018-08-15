@@ -1,22 +1,19 @@
 # IPTB
 
-`iptb` is a program used to create and manage a cluster of sandboxed IPFS nodes locally on your computer. Spin up 1000s of nodes! It exposes various options, such as different bootstrapping patterns. `iptb` makes testing IPFS networks easy!
+`iptb` is a program used to create and manage a cluster of sandboxed nodes
+locally on your computer. Spin up 1000s of nodes! Using `iptb` makes testing
+libp2p networks easy!
 
 ### Example
 
 ```
-$ iptb init -n 5
+$ iptb auto -count 5 >/dev/null
 
 $ iptb start
-Started daemon 0, pid = 12396
-Started daemon 1, pid = 12406
-Started daemon 2, pid = 12415
-Started daemon 3, pid = 12424
-Started daemon 4, pid = 12434
 
 $ iptb shell 0
 $ echo $IPFS_PATH
-/home/noffle/testbed/0
+/home/iptb/testbed/testbeds/default/0
 
 $ echo 'hey!' | ipfs add -q
 QmNqugRcYjwh9pEQUK7MLuxvLjxDNZL1DH8PJJgWtQXxuF
@@ -32,41 +29,49 @@ hey!
 
 ### Usage
 ```
-$ iptb --help
-
 NAME:
-	iptb - The IPFS TestBed
+   iptb - iptb is a tool for managing test clusters of libp2p nodes
 
 USAGE:
-	iptb [global options] command [command options] [arguments...]
+   iptb [global options] command [command options] [arguments...]
+
+VERSION:
+   0.0.0
 
 COMMANDS:
-	init			create and initialize testbed configuration
-	start			start up all testbed nodes
-	kill, stop		kill a specific node (or all nodes, if none specified)
-	restart			kill all nodes, then restart
-	shell			spawn a subshell with certain IPFS environment variables set
-	get			get an attribute of the given node
-	connect			connect two nodes together
-	dump-stack		get a stack dump from the given daemon
-	help, h			show a list of subcommands, or help for a specific subcommand
+     auto     create default testbed and initialize
+     testbed  manage testbeds
+     help, h  Shows a list of commands or help for one command
+   ATTRIBUTES:
+     attr  get, set, list attributes
+   CORE:
+     init     initialize specified nodes (or all)
+     start    start specified nodes (or all)
+     stop     stop specified nodes (or all)
+     restart  restart specified nodes (or all)
+     run      run command on specified nodes (or all)
+     connect  connect sets of nodes together (or all)
+     shell    starts a shell within the context of node
+   METRICS:
+     logs    show logs from specified nodes (or all)
+     events  stream events from specified nodes (or all)
+     metric  get metric from node
 
 GLOBAL OPTIONS:
-	--help, -h		show help
-	--version, -v		print the version
+   --testbed value  Name of testbed to use under IPTB_ROOT (default: "default") [$IPTB_TESTBED]
+   --help, -h       show help
+   --version, -v    print the version
 ```
 
 ### Install
 
 ```
-go get github.com/ipfs/iptb
+$ go get github.com/ipfs/iptb
 ```
 
 ### Configuration
 
 By default, `iptb` uses `$HOME/testbed` to store created nodes. This path is configurable via the environment variables `IPTB_ROOT`.
-
-
 
 ### License
 
