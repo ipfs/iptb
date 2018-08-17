@@ -20,21 +20,20 @@ import (
 	"github.com/ipfs/go-cid"
 	config "github.com/ipfs/go-ipfs-config"
 	serial "github.com/ipfs/go-ipfs-config/serialize"
-	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 )
 
 var errTimeout = errors.New("timeout")
 
-var PluginName = "localipfs"
+var PluginName = "browseripfs"
 
-type LocalIpfs struct {
-	dir       string
-	peerid    *cid.Cid
-	apiaddr   multiaddr.Multiaddr
-	swarmaddr multiaddr.Multiaddr
-	binary    string
-	mdns      bool
+type BrowserIpfs struct {
+	dir         string
+	peerid      *cid.Cid
+	repobuilder string
+	apiaddr     string
+	swarmaddr   string
+	source      string
 }
 
 var NewNode testbedi.NewNodeFunc
@@ -43,83 +42,72 @@ var GetAttrList testbedi.GetAttrListFunc
 
 func init() {
 	NewNode = func(dir string, attrs map[string]string) (testbedi.Core, error) {
-		mdns := false
-		binary := ""
-
-		var ok bool
-
-		if binary, ok = attrs["binary"]; !ok {
-			var err error
-			binary, err = exec.LookPath("ipfs")
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		apiaddr, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-		if err != nil {
+		if _, err := exec.LookPath("ipfs"); err != nil {
 			return nil, err
 		}
 
-		swarmaddr, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
-		if err != nil {
+		if _, err := exec.LookPath("node"); err != nil {
 			return nil, err
 		}
+
+		apiaddr := "/ip4/127.0.0.1/tcp/0"
+		swarmaddr := "/ip4/127.0.0.1/tcp/0"
 
 		if apiaddrstr, ok := attrs["apiaddr"]; ok {
-			var err error
-			apiaddr, err = multiaddr.NewMultiaddr(apiaddrstr)
-
-			if err != nil {
-				return nil, err
-			}
+			apiaddr = apiaddrstr
 		}
 
 		if swarmaddrstr, ok := attrs["swarmaddr"]; ok {
-			var err error
-			swarmaddr, err = multiaddr.NewMultiaddr(swarmaddrstr)
+			swarmaddr = swarmaddrstr
+		}
 
+		// repobuilder is the binary used to run `Init`, a browser ipfs node cannot
+		// do this itself. The repo is largely ignore, but the configuration we want
+		var repobuilder string
+		if v, ok := attrs["repobuilder"]; ok {
+			repobuilder = v
+		} else {
+			jsipfspath, err := exec.LookPath("jsipfs")
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("No `repobuilder` provided, could not find jsipfs in path")
 			}
+
+			repobuilder = jsipfspath
 		}
 
-		if _, ok := attrs["mdns"]; ok {
-			mdns = true
+		// source is any js (at the moment) script which can read the ipfs repo and expose an ipfs-api
+		// An implementation can be found @ https://github.com/travisperson/js-ipfs-browser-server
+		var source string
+		if v, ok := attrs["source"]; ok {
+			source = v
+		} else {
+			return nil, fmt.Errorf("No `source` provided")
 		}
 
-		return &LocalIpfs{
-			dir:       dir,
-			apiaddr:   apiaddr,
-			swarmaddr: swarmaddr,
-			binary:    binary,
-			mdns:      mdns,
+		return &BrowserIpfs{
+			dir:         dir,
+			apiaddr:     apiaddr,
+			swarmaddr:   swarmaddr,
+			repobuilder: repobuilder,
+			source:      source,
 		}, nil
 
 	}
 
 	GetAttrList = func() []string {
-		return ipfs.GetAttrList()
+		return []string{}
 	}
 
 	GetAttrDesc = func(attr string) (string, error) {
-		return ipfs.GetAttrDesc(attr)
+		return "", nil
 	}
 
-}
-
-func GetMetricList() []string {
-	return ipfs.GetMetricList()
-}
-
-func GetMetricDesc(attr string) (string, error) {
-	return ipfs.GetMetricDesc(attr)
 }
 
 /// TestbedNode Interface
 
-func (l *LocalIpfs) Init(ctx context.Context, agrs ...string) (testbedi.Output, error) {
-	agrs = append([]string{l.binary, "init"}, agrs...)
+func (l *BrowserIpfs) Init(ctx context.Context, agrs ...string) (testbedi.Output, error) {
+	agrs = append([]string{l.repobuilder, "init"}, agrs...)
 	output, oerr := l.RunCmd(ctx, nil, agrs...)
 	if oerr != nil {
 		return nil, oerr
@@ -130,43 +118,36 @@ func (l *LocalIpfs) Init(ctx context.Context, agrs ...string) (testbedi.Output, 
 		return nil, err
 	}
 
-	lcfg := icfg.(*config.Config)
+	lcfg, ok := icfg.(*config.Config)
+	if !ok {
+		return nil, fmt.Errorf("Error: Config() is not an ipfs config")
+	}
 
+	// jsipfs does not like this value being nil, so it needs to be set to an empty array
 	lcfg.Bootstrap = []string{}
-	lcfg.Addresses.Swarm = []string{l.swarmaddr.String()}
-	lcfg.Addresses.API = l.apiaddr.String()
+	lcfg.Addresses.Swarm = []string{l.swarmaddr}
+	lcfg.Addresses.API = l.apiaddr
 	lcfg.Addresses.Gateway = ""
-	lcfg.Discovery.MDNS.Enabled = l.mdns
+	lcfg.Discovery.MDNS.Enabled = false
 
-	err = l.WriteConfig(lcfg)
-	if err != nil {
+	if err = l.WriteConfig(lcfg); err != nil {
 		return nil, err
 	}
 
 	return output, oerr
 }
 
-func (l *LocalIpfs) Start(ctx context.Context, wait bool, args ...string) (testbedi.Output, error) {
-	alive, err := l.isAlive()
-	if err != nil {
-		return nil, err
-	}
-
-	if alive {
-		return nil, fmt.Errorf("node is already running")
-	}
+func (l *BrowserIpfs) Start(ctx context.Context, wait bool, args ...string) (testbedi.Output, error) {
+	var err error
 
 	dir := l.dir
-	dargs := append([]string{"daemon"}, args...)
-	cmd := exec.Command(l.binary, dargs...)
+	cmd := exec.Command("node", l.source)
 	cmd.Dir = dir
 
 	cmd.Env, err = l.env()
 	if err != nil {
 		return nil, err
 	}
-
-	iptbutil.SetupOpt(cmd)
 
 	stdout, err := os.Create(filepath.Join(dir, "daemon.stdout"))
 	if err != nil {
@@ -181,15 +162,13 @@ func (l *LocalIpfs) Start(ctx context.Context, wait bool, args ...string) (testb
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
-	err = cmd.Start()
-	if err != nil {
+	if err = cmd.Start(); err != nil {
 		return nil, err
 	}
 
 	pid := cmd.Process.Pid
 
-	err = ioutil.WriteFile(filepath.Join(dir, "daemon.pid"), []byte(fmt.Sprint(pid)), 0666)
-	if err != nil {
+	if err = ioutil.WriteFile(filepath.Join(dir, "daemon.pid"), []byte(fmt.Sprint(pid)), 0666); err != nil {
 		return nil, err
 	}
 
@@ -200,7 +179,7 @@ func (l *LocalIpfs) Start(ctx context.Context, wait bool, args ...string) (testb
 	return nil, nil
 }
 
-func (l *LocalIpfs) Stop(ctx context.Context) error {
+func (l *BrowserIpfs) Stop(ctx context.Context) error {
 	pid, err := l.getPID()
 	if err != nil {
 		return fmt.Errorf("error killing daemon %s: %s", l.dir, err)
@@ -224,7 +203,7 @@ func (l *LocalIpfs) Stop(ctx context.Context) error {
 		}
 	}()
 
-	if err := l.signalAndWait(p, waitch, syscall.SIGTERM, 1*time.Second); err != errTimeout {
+	if err := l.signalAndWait(p, waitch, syscall.SIGINT, 1*time.Second); err != errTimeout {
 		return err
 	}
 
@@ -240,12 +219,11 @@ func (l *LocalIpfs) Stop(ctx context.Context) error {
 		return err
 	}
 
-	return fmt.Errorf("Could not stop localipfs node with pid %d", pid)
+	return fmt.Errorf("Could not stop browseripfs node with pid %d", pid)
 }
 
-func (l *LocalIpfs) RunCmd(ctx context.Context, stdin io.Reader, args ...string) (testbedi.Output, error) {
+func (l *BrowserIpfs) RunCmd(ctx context.Context, stdin io.Reader, args ...string) (testbedi.Output, error) {
 	env, err := l.env()
-
 	if err != nil {
 		return nil, fmt.Errorf("error getting env: %s", err)
 	}
@@ -264,8 +242,7 @@ func (l *LocalIpfs) RunCmd(ctx context.Context, stdin io.Reader, args ...string)
 		return nil, err
 	}
 
-	err = cmd.Start()
-	if err != nil {
+	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
 
@@ -275,10 +252,6 @@ func (l *LocalIpfs) RunCmd(ctx context.Context, stdin io.Reader, args ...string)
 	}
 
 	stdoutbytes, err := ioutil.ReadAll(stdout)
-	if err != nil {
-		return nil, err
-	}
-
 	if err != nil {
 		return nil, err
 	}
@@ -300,31 +273,27 @@ func (l *LocalIpfs) RunCmd(ctx context.Context, stdin io.Reader, args ...string)
 	return iptbutil.NewOutput(args, stdoutbytes, stderrbytes, exitcode, err), nil
 }
 
-func (l *LocalIpfs) Connect(ctx context.Context, tbn testbedi.Core) error {
+func (l *BrowserIpfs) Connect(ctx context.Context, tbn testbedi.Core) error {
 	swarmaddrs, err := tbn.SwarmAddrs()
 	if err != nil {
 		return err
 	}
 
-	output, err := l.RunCmd(ctx, nil, "ipfs", "swarm", "connect", swarmaddrs[0])
-
-	if err != nil {
-		return err
-	}
-
-	if output.ExitCode() != 0 {
-		out, err := ioutil.ReadAll(output.Stderr())
+	for _, addr := range swarmaddrs {
+		output, err := l.RunCmd(ctx, nil, "ipfs", "swarm", "connect", addr)
 		if err != nil {
 			return err
 		}
 
-		return fmt.Errorf("%s", string(out))
+		if output.ExitCode() == 0 {
+			return nil
+		}
 	}
 
-	return nil
+	return fmt.Errorf("Could not connect using any address")
 }
 
-func (l *LocalIpfs) Shell(ctx context.Context, nodes []testbedi.Core) error {
+func (l *BrowserIpfs) Shell(ctx context.Context, nodes []testbedi.Core) error {
 	shell := os.Getenv("SHELL")
 	if shell == "" {
 		return fmt.Errorf("no shell found")
@@ -346,7 +315,6 @@ func (l *LocalIpfs) Shell(ctx context.Context, nodes []testbedi.Core) error {
 
 	for i, n := range nodes {
 		peerid, err := n.PeerID()
-
 		if err != nil {
 			return err
 		}
@@ -357,7 +325,7 @@ func (l *LocalIpfs) Shell(ctx context.Context, nodes []testbedi.Core) error {
 	return syscall.Exec(shell, []string{shell}, nenvs)
 }
 
-func (l *LocalIpfs) String() string {
+func (l *BrowserIpfs) String() string {
 	pcid, err := l.PeerID()
 	if err != nil {
 		return fmt.Sprintf("%s", l.Type())
@@ -365,19 +333,19 @@ func (l *LocalIpfs) String() string {
 	return fmt.Sprintf("%s", pcid[0:12])
 }
 
-func (l *LocalIpfs) APIAddr() (string, error) {
+func (l *BrowserIpfs) APIAddr() (string, error) {
 	return ipfs.GetAPIAddrFromRepo(l.dir)
 }
 
-func (l *LocalIpfs) SwarmAddrs() ([]string, error) {
+func (l *BrowserIpfs) SwarmAddrs() ([]string, error) {
 	return ipfs.SwarmAddrs(l)
 }
 
-func (l *LocalIpfs) Dir() string {
+func (l *BrowserIpfs) Dir() string {
 	return l.dir
 }
 
-func (l *LocalIpfs) PeerID() (string, error) {
+func (l *BrowserIpfs) PeerID() (string, error) {
 	if l.peerid != nil {
 		return l.peerid.String(), nil
 	}
@@ -392,82 +360,21 @@ func (l *LocalIpfs) PeerID() (string, error) {
 	return l.peerid.String(), nil
 }
 
-/// Metric Interface
-
-func (l *LocalIpfs) GetMetricList() []string {
-	return GetMetricList()
-}
-
-func (l *LocalIpfs) GetMetricDesc(attr string) (string, error) {
-	return GetMetricDesc(attr)
-}
-
-func (l *LocalIpfs) Metric(metric string) (string, error) {
-	return ipfs.GetMetric(l, metric)
-}
-
-func (l *LocalIpfs) Heartbeat() (map[string]string, error) {
-	return nil, nil
-}
-
-func (l *LocalIpfs) Events() (io.ReadCloser, error) {
-	return ipfs.ReadLogs(l)
-}
-
-func (l *LocalIpfs) Logs() (io.ReadCloser, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-// Attribute Interface
-
-func (l *LocalIpfs) GetAttrList() []string {
-	return GetAttrList()
-}
-
-func (l *LocalIpfs) GetAttrDesc(attr string) (string, error) {
-	return GetAttrDesc(attr)
-}
-
-func (l *LocalIpfs) GetAttr(attr string) (string, error) {
-	return ipfs.GetAttr(l, attr)
-}
-
-func (l *LocalIpfs) SetAttr(string, string) error {
-	return fmt.Errorf("no attribute to set")
-}
-
-func (l *LocalIpfs) StderrReader() (io.ReadCloser, error) {
-	return l.readerFor("daemon.stderr")
-}
-
-func (l *LocalIpfs) StdoutReader() (io.ReadCloser, error) {
-	return l.readerFor("daemon.stdout")
-}
-
-func (l *LocalIpfs) Config() (interface{}, error) {
+func (l *BrowserIpfs) Config() (interface{}, error) {
 	return serial.Load(filepath.Join(l.dir, "config"))
 }
 
-func (l *LocalIpfs) WriteConfig(cfg interface{}) error {
+func (l *BrowserIpfs) WriteConfig(cfg interface{}) error {
 	return serial.WriteConfigFile(filepath.Join(l.dir, "config"), cfg)
 }
 
-func (l *LocalIpfs) Type() string {
-	return "ipfs"
+func (l *BrowserIpfs) Type() string {
+	return PluginName
 }
 
-func (l *LocalIpfs) Deployment() string {
-	return "local"
-}
-
-func (l *LocalIpfs) readerFor(file string) (io.ReadCloser, error) {
-	return os.OpenFile(filepath.Join(l.dir, file), os.O_RDONLY, 0)
-}
-
-func (l *LocalIpfs) signalAndWait(p *os.Process, waitch <-chan struct{}, signal os.Signal, t time.Duration) error {
-	err := p.Signal(signal)
-	if err != nil {
-		return fmt.Errorf("error killing daemon %s: %s", l.dir, err)
+func (l *BrowserIpfs) signalAndWait(p *os.Process, waitch <-chan struct{}, signal os.Signal, t time.Duration) error {
+	if err := p.Signal(signal); err != nil {
+		return errors.Wrapf(err, "error killing daemon %s", l.dir)
 	}
 
 	select {
@@ -478,7 +385,7 @@ func (l *LocalIpfs) signalAndWait(p *os.Process, waitch <-chan struct{}, signal 
 	}
 }
 
-func (l *LocalIpfs) getPID() (int, error) {
+func (l *BrowserIpfs) getPID() (int, error) {
 	b, err := ioutil.ReadFile(filepath.Join(l.dir, "daemon.pid"))
 	if err != nil {
 		return -1, err
@@ -487,28 +394,7 @@ func (l *LocalIpfs) getPID() (int, error) {
 	return strconv.Atoi(string(b))
 }
 
-func (l *LocalIpfs) isAlive() (bool, error) {
-	pid, err := l.getPID()
-	if os.IsNotExist(err) {
-		return false, nil
-	} else if err != nil {
-		return false, err
-	}
-
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return false, nil
-	}
-
-	err = proc.Signal(syscall.Signal(0))
-	if err == nil {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func (l *LocalIpfs) env() ([]string, error) {
+func (l *BrowserIpfs) env() ([]string, error) {
 	envs := os.Environ()
 	ipfspath := "IPFS_PATH=" + l.dir
 

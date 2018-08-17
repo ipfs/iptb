@@ -210,8 +210,12 @@ func SwarmAddrs(l testbedi.Core) ([]string, error) {
 
 	var maddrs []string
 	for _, straddr := range straddrs {
-		fstraddr := fmt.Sprintf("%s/ipfs/%s", straddr, pcid)
-		maddrs = append(maddrs, fstraddr)
+		if !strings.Contains(straddr, pcid) {
+			fstraddr := fmt.Sprintf("%s/ipfs/%s", straddr, pcid)
+			maddrs = append(maddrs, fstraddr)
+		} else {
+			maddrs = append(maddrs, straddr)
+		}
 	}
 
 	return maddrs, nil
