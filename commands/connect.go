@@ -1,9 +1,13 @@
 package commands
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"os"
 	"path"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -12,6 +16,7 @@ import (
 	"github.com/ipfs/iptb/testbed"
 )
 
+// TODO:Add explanation in the description for topology flag
 var ConnectCmd = cli.Command{
 	Category:  "CORE",
 	Name:      "connect",
@@ -47,20 +52,46 @@ INPUT         EXPANDED
 			Usage: "timeout on the command",
 			Value: "30s",
 		},
+		cli.StringFlag{
+			Name:  "topology",
+			Usage: "specify a network topology file",
+		},
 	},
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
 		flagTestbed := c.GlobalString("testbed")
 		flagTimeout := c.String("timeout")
+		flagTopology := c.String("topology")
 
 		timeout, err := time.ParseDuration(flagTimeout)
 		if err != nil {
 			return err
 		}
-
 		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
-		args := c.Args()
 
+		// Case Topoloogy is specified
+		if len(flagTopology) != 0 {
+			nodes, err := tb.Nodes()
+			if err != nil {
+				return err
+			}
+			topologyGraph, err := parseTopology(flagRoot, len(nodes))
+			if err != nil {
+				return err
+			}
+			for _, connectionRow := range topologyGraph {
+				from := connectionRow[0]
+				to := connectionRow[1:]
+				err = connectNodes(tb, []int{from}, to, timeout)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+
+		// Case range is specified
+		args := c.Args()
 		switch c.NArg() {
 		case 0:
 			nodes, err := tb.Nodes()
@@ -122,4 +153,70 @@ func connectNodes(tb testbed.BasicTestbed, from, to []int, timeout time.Duration
 	}
 
 	return buildReport(results)
+}
+
+func parseTopology(fileDir string, numberOfNodes int) ([][]int, error) {
+
+	// Scan Input file Line by Line //
+	inFile, err := os.Open(fileDir)
+	defer inFile.Close()
+	if err != nil {
+		return nil, err
+	}
+	scanner := bufio.NewScanner(inFile)
+	scanner.Split(bufio.ScanLines)
+
+	// Store number of line to produce meaningful errors
+	lineNumber := 1
+	// Topology graph implemented as an Adjacency Matrix DS
+	// This intermediate variable it could be terminated to increase peformance
+	// This would decrease code readability.
+	var topology [][]int
+
+	for scanner.Scan() {
+		var destinations []string
+		var lineTokenized []string
+		line := scanner.Text()
+		// Check if the line is a comment or empty and skip it//
+		if len(line) == 0 || line[0] == '#' {
+			lineNumber++
+			continue
+		} else {
+			lineTokenized = strings.Split(line, ":")
+			// Check if the format is correct
+			if len(lineTokenized) == 1 {
+				return nil, errors.New("Line " + strconv.Itoa(lineNumber) + " does not follow the correct format")
+			}
+			destinations = strings.Split(lineTokenized[1], ",")
+		}
+		// Declare the topology in that line, the first element is the origin
+		var topologyLine []int
+		// Parse origin in the line
+		origin, err := strconv.Atoi(lineTokenized[0])
+		// Check if it can be casted to integer
+		if err != nil {
+			return nil, errors.New("Line: " + strconv.Itoa(lineNumber) + " of connection graph, could not be parsed")
+		}
+		// Check if the node is out of range
+		if origin >= numberOfNodes {
+			return nil, errors.New("Node origin in line: " + strconv.Itoa(lineNumber) + " out of range")
+		}
+		topologyLine = append(topologyLine, origin)
+		for _, destination := range destinations {
+			// Check if it can be casted to integer
+			target, err := strconv.Atoi(destination)
+			if err != nil {
+				return nil, errors.New("Check line: " + strconv.Itoa(lineNumber) + " of connection graph, could not be parsed")
+			}
+			// Check if the node is out of range
+			if target >= numberOfNodes {
+				return nil, errors.New("Node target in line: " + strconv.Itoa(lineNumber) + " out of range")
+			}
+			// Append destination to graph
+			topologyLine = append(topologyLine, target)
+		}
+		lineNumber++
+		topology = append(topology, topologyLine)
+	}
+	return topology, nil
 }
