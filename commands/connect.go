@@ -28,13 +28,17 @@ The connect command allows for connecting sets of nodes together.
 Every node listed in the first set, will try to connect to every node
 listed in the second set.
 
-There are three variants of the command. It can accept no arugments,
-a single argument, or two arguments. The no argument and single argument
-expands out to the two argument usage.
+There are four variants of the command. It can accept no arugments,
+a single argument, two arguments or a file. The no argument and single argument
+expands out to the two argument usage. The file argument, parses the file and exapnds it
+to the two argument usage. The file should have the following format:
+- Node Origin:Connection 1 Connection 2 .... Connection n e.g. 0:1,2,3,4
+- Lines starting with # are ignored (comment line), empty lines are also ignored
 
 $ iptb connect             => iptb connect [0-C] [0-C]
 $ iptb connect [n-m]       => iptb connect [n-m] [n-m]
 $ iptb connect [n-m] [i-k]
+$ iptb connect -topology /directory/topology.txt
 
 Sets of nodes can be expressed in the following ways
 
@@ -75,7 +79,7 @@ INPUT         EXPANDED
 			if err != nil {
 				return err
 			}
-			topologyGraph, err := parseTopology(flagRoot, len(nodes))
+			topologyGraph, err := parseTopology(flagTopology, len(nodes))
 			if err != nil {
 				return err
 			}
@@ -195,22 +199,22 @@ func parseTopology(fileDir string, numberOfNodes int) ([][]int, error) {
 		origin, err := strconv.Atoi(lineTokenized[0])
 		// Check if it can be casted to integer
 		if err != nil {
-			return nil, errors.New("Line: " + strconv.Itoa(lineNumber) + " of connection graph, could not be parsed")
+			return nil, errors.New("Line " + strconv.Itoa(lineNumber) + " of connection graph, could not be parsed")
 		}
 		// Check if the node is out of range
 		if origin >= numberOfNodes {
-			return nil, errors.New("Node origin in line: " + strconv.Itoa(lineNumber) + " out of range")
+			return nil, errors.New("Origin node in line " + strconv.Itoa(lineNumber) + " out of range")
 		}
 		topologyLine = append(topologyLine, origin)
 		for _, destination := range destinations {
 			// Check if it can be casted to integer
 			target, err := strconv.Atoi(destination)
 			if err != nil {
-				return nil, errors.New("Check line: " + strconv.Itoa(lineNumber) + " of connection graph, could not be parsed")
+				return nil, errors.New("Check line " + strconv.Itoa(lineNumber) + " of connection graph, could not be parsed")
 			}
 			// Check if the node is out of range
 			if target >= numberOfNodes {
-				return nil, errors.New("Node target in line: " + strconv.Itoa(lineNumber) + " out of range")
+				return nil, errors.New("Target node in line " + strconv.Itoa(lineNumber) + " out of range")
 			}
 			// Append destination to graph
 			topologyLine = append(topologyLine, target)

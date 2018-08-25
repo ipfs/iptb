@@ -14,6 +14,7 @@ import (
 )
 
 func loadPlugins(dir string) error {
+
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return nil
 	}
@@ -24,6 +25,7 @@ func loadPlugins(dir string) error {
 	}
 
 	for _, f := range plugs {
+
 		plg, err := testbed.LoadPlugin(path.Join(dir, f.Name()))
 
 		if err != nil {
@@ -80,7 +82,6 @@ func main() {
 		}
 
 		c.Set("IPTB_ROOT", flagRoot)
-
 		return loadPlugins(path.Join(flagRoot, "plugins"))
 	}
 	app.Commands = []cli.Command{

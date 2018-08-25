@@ -7,7 +7,7 @@ libp2p networks easy!
 ### Example
 
 ```
-$ iptb auto -count 5 >/dev/null
+$ iptb auto -count 5 -type <plugin_name> 
 
 $ iptb start
 
@@ -26,7 +26,7 @@ $ iptb shell 4
 $ ipfs cat QmNqugRcYjwh9pEQUK7MLuxvLjxDNZL1DH8PJJgWtQXxuF
 hey!
 ```
-
+Available plugins now: Local IPFS node (plugin_name: localipfs), Docker IPFS node (plugin_name: dockeripfs)
 ### Usage
 ```
 NAME:

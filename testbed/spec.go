@@ -118,7 +118,6 @@ func loadPluginAttr(pl *plugin.Plugin, plg *IptbPlugin) (bool, error) {
 
 func loadPlugin(path string) (*IptbPlugin, error) {
 	pl, err := plugin.Open(path)
-
 	if err != nil {
 		return nil, err
 	}

@@ -56,7 +56,6 @@ $ iptb auto           -count 5 -type <type>
 		flagForce := c.Bool("force")
 
 		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
-
 		if err := testbed.AlreadyInitCheck(tb.Dir(), flagForce); err != nil {
 			return err
 		}
