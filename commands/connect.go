@@ -156,7 +156,7 @@ func connectNodes(tb testbed.BasicTestbed, from, to []int, timeout time.Duration
 		}
 	}
 
-	return buildReport(results)
+	return buildReport(results, "", false)
 }
 
 func parseTopology(fileDir string, numberOfNodes int) ([][]int, error) {

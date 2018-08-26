@@ -46,6 +46,6 @@ var StopCmd = cli.Command{
 			return err
 		}
 
-		return buildReport(results)
+		return buildReport(results, "", false)
 	},
 }

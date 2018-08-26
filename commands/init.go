@@ -21,6 +21,10 @@ var InitCmd = cli.Command{
 			Name:   "terminator",
 			Hidden: true,
 		},
+		cli.BoolFlag{
+			Name:  "stats",
+			Usage: "Output statistics on the command execution",
+		},
 	},
 	Before: func(c *cli.Context) error {
 		if present := isTerminatorPresent(c); present {
@@ -32,6 +36,7 @@ var InitCmd = cli.Command{
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
 		flagTestbed := c.GlobalString("testbed")
+		flagStats := c.Bool("stats")
 
 		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 		nodes, err := tb.Nodes()
@@ -59,6 +64,6 @@ var InitCmd = cli.Command{
 			return err
 		}
 
-		return buildReport(results)
+		return buildReport(results, "Initialize Nodes", flagStats)
 	},
 }
