@@ -65,8 +65,21 @@ GLOBAL OPTIONS:
 
 ### Install
 
+_Note: For MacOS golang v1.11 is needed to support plugin loading
+(see [golang/go#24653](https://github.com/golang/go/issues/24653) for more information)_
+
 ```
 $ go get github.com/ipfs/iptb
+```
+
+### Plugins
+
+Plugins are now used to implement support for managining nodes. Plugins are
+stored under `$IPTB_ROOT/plugins` (see [configuration](#configuration))
+
+```
+make plugins
+make install_plugins
 ```
 
 ### Configuration
