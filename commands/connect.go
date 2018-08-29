@@ -108,6 +108,10 @@ func connectNodes(tb testbed.BasicTestbed, from, to []int, timeout time.Duration
 	var results []Result
 	for _, f := range from {
 		for _, t := range to {
+			if f == t {
+				continue
+			}
+
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
