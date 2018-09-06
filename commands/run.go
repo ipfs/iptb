@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"regexp"
 	"strings"
 
 	cli "github.com/urfave/cli"
@@ -31,8 +30,10 @@ var RunCmd = cli.Command{
 		},
 	},
 	Before: func(c *cli.Context) error {
-		if present := isTerminatorPresent(c); present {
-			return c.Set("terminator", "true")
+		if !c.IsSet("cmdFile") {
+			if present := isTerminatorPresent(c); present {
+				return c.Set("terminator", "true")
+			}
 		}
 		return nil
 	},
@@ -46,17 +47,8 @@ var RunCmd = cli.Command{
 			return err
 		}
 
-		nodeRange, args := parseCommand(c.Args(), c.IsSet("terminator"))
-
-		if nodeRange == "" {
-			nodeRange = fmt.Sprintf("[0-%d]", len(nodes)-1)
-		}
-
-		list, err := parseRange(nodeRange)
-		if err != nil {
-			return fmt.Errorf("could not parse node range %s", nodeRange)
-		}
-
+		var args [][]string
+		var terminatorPresent []bool
 		if c.IsSet("cmdFile") {
 			cmdFile, err := os.Open(c.String("cmdFile"))
 			if err != nil {
@@ -64,59 +56,45 @@ var RunCmd = cli.Command{
 			}
 			defer cmdFile.Close()
 
-			reg := regexp.MustCompile(`(?:(?P<nodeRange>.*?): *)(?P<cmd>[^\\z]+)`)
 			scanner := bufio.NewScanner(cmdFile)
-			line := 0
-			var ranges [][]int
-			var runCmds []outputFunc
 			for scanner.Scan() {
-				submatch := reg.FindStringSubmatch(scanner.Text())
-				if len(submatch) != 3 {
-					return fmt.Errorf("could not parse line %d of input file", line)
+				tokens := strings.Fields(scanner.Text())
+				term := tokens[0] == "--"
+				if term {
+					tokens = tokens[1:]
 				}
-				matches := make(map[string]string)
-				for i, name := range reg.SubexpNames() {
-					if i != 0 && name != "" {
-						matches[name] = submatch[i]
-					}
-				}
-
-				nodeRange := matches["nodeRange"]
-				if nodeRange == "" {
-					nodeRange = fmt.Sprintf("[0-%d]", len(nodes)-1)
-				}
-
-				list, err := parseRange(nodeRange)
-				if err != nil {
-					return fmt.Errorf("parse error on line %d: %s", line, err)
-				}
-				ranges = append(ranges, list)
-
-				tokens := strings.Fields(matches["cmd"])
-				runCmd := func(node testbedi.Core) (testbedi.Output, error) {
-					return node.RunCmd(context.Background(), nil, tokens...)
-				}
-				runCmds = append(runCmds, runCmd)
-
-				line++
+				terminatorPresent = append(terminatorPresent, term)
+				args = append(args, tokens)
 			}
+		} else {
+			cArgsStr := make([]string, c.NArg())
+			for i, arg := range c.Args() {
+				cArgsStr[i] = arg
+			}
+			args = append(args, cArgsStr)
+			terminatorPresent = append(terminatorPresent, c.IsSet("terminator"))
+		}
 
-			results, err := mapListWithOutput(ranges, nodes, runCmds)
+		ranges := make([][]int, len(args))
+		runCmds := make([]outputFunc, len(args))
+		for i, cmd := range args {
+			nodeRange, tokens := parseCommand(cmd, terminatorPresent[i])
+			if nodeRange == "" {
+				nodeRange = fmt.Sprintf("[0-%d]", len(nodes)-1)
+			}
+			list, err := parseRange(nodeRange)
 			if err != nil {
-				return err
+				return fmt.Errorf("could not parse node range %s", nodeRange)
 			}
-			return buildReport(results)
+			ranges[i] = list
+
+			runCmd := func(node testbedi.Core) (testbedi.Output, error) {
+				return node.RunCmd(context.Background(), nil, tokens...)
+			}
+			runCmds[i] = runCmd
 		}
 
-		runCmd := func(node testbedi.Core) (testbedi.Output, error) {
-			return node.RunCmd(context.Background(), nil, args...)
-		}
-
-		results, err := mapWithOutput(list, nodes, runCmd)
-		if err != nil {
-			return err
-		}
-
+		results, err := mapListWithOutput(ranges, nodes, runCmds)
 		return buildReport(results)
 	},
 }
