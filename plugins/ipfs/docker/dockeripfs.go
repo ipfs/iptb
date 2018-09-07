@@ -283,7 +283,18 @@ func (l *DockerIpfs) Connect(ctx context.Context, n testbedi.Core) error {
 		return err
 	}
 
-	output, err := l.RunCmd(ctx, nil, "ipfs", "swarm", "connect", swarmaddrs[1])
+	var output testbedi.Output
+	var addr string
+	for _, swarmaddr := range swarmaddrs {
+		if strings.HasPrefix(swarmaddr, "/ip4/") && !strings.HasPrefix(swarmaddr, "/ip4/127.0.0.1/") {
+			addr = swarmaddr
+			break
+		}
+	}
+	if addr == "" {
+		return fmt.Errorf("could not find valid swarm address for peer %s", n.String())
+	}
+	output, err = l.RunCmd(ctx, nil, "ipfs", "swarm", "connect", addr)
 
 	if err != nil {
 		return err
