@@ -70,6 +70,9 @@ var RunCmd = cli.Command{
 		scanner := bufio.NewScanner(reader)
 		for scanner.Scan() {
 			tokens := strings.Fields(scanner.Text())
+			if strings.HasPrefix(tokens[0], "#") {
+				continue
+			}
 			args = append(args, tokens)
 		}
 
