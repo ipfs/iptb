@@ -20,20 +20,21 @@ var RunCmd = cli.Command{
 	Usage:     "run command on specified nodes (or all)",
 	ArgsUsage: "[nodes] -- <command...>",
 	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "cmdFile",
-			Usage: "File containing list of commands to run asynchronously on nodes.",
-		},
 		cli.BoolFlag{
 			Name:   "terminator",
 			Hidden: true,
 		},
+		cli.BoolFlag{
+			Name:   "stdin",
+			Hidden: true,
+		},
 	},
 	Before: func(c *cli.Context) error {
-		if !c.IsSet("cmdFile") {
-			if present := isTerminatorPresent(c); present {
-				return c.Set("terminator", "true")
-			}
+		if c.NArg() == 0 {
+			return c.Set("stdin", "true")
+		}
+		if present := isTerminatorPresent(c); present {
+			return c.Set("terminator", "true")
 		}
 		return nil
 	},
@@ -49,14 +50,8 @@ var RunCmd = cli.Command{
 
 		var args [][]string
 		var terminatorPresent []bool
-		if c.IsSet("cmdFile") {
-			cmdFile, err := os.Open(c.String("cmdFile"))
-			if err != nil {
-				return err
-			}
-			defer cmdFile.Close()
-
-			scanner := bufio.NewScanner(cmdFile)
+		if c.IsSet("stdin") {
+			scanner := bufio.NewScanner(os.Stdin)
 			for scanner.Scan() {
 				tokens := strings.Fields(scanner.Text())
 				term := tokens[0] == "--"
