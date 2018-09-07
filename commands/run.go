@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -48,28 +49,34 @@ var RunCmd = cli.Command{
 			return err
 		}
 
-		var args [][]string
-		var terminatorPresent bool
+		var reader io.Reader
 		if c.IsSet("stdin") {
-			terminatorPresent = false
-			scanner := bufio.NewScanner(os.Stdin)
-			for scanner.Scan() {
-				tokens := strings.Fields(scanner.Text())
-				args = append(args, tokens)
-			}
+			reader = bufio.NewReader(os.Stdin)
 		} else {
-			terminatorPresent = c.IsSet("terminator")
-			cArgsStr := make([]string, c.NArg())
-			for i, arg := range c.Args() {
-				cArgsStr[i] = arg
+			var builder strings.Builder
+			if c.IsSet("terminator") {
+				builder.WriteString("-- ")
 			}
-			args = append(args, cArgsStr)
+			for i, arg := range c.Args() {
+				builder.WriteString(arg)
+				if i != c.NArg()-1 {
+					builder.WriteString(" ")
+				}
+			}
+			reader = strings.NewReader(builder.String())
+		}
+
+		var args [][]string
+		scanner := bufio.NewScanner(reader)
+		for scanner.Scan() {
+			tokens := strings.Fields(scanner.Text())
+			args = append(args, tokens)
 		}
 
 		ranges := make([][]int, len(args))
 		runCmds := make([]outputFunc, len(args))
 		for i, cmd := range args {
-			nodeRange, tokens := parseCommand(cmd, terminatorPresent)
+			nodeRange, tokens := parseCommand(cmd, false)
 			if nodeRange == "" {
 				nodeRange = fmt.Sprintf("[0-%d]", len(nodes)-1)
 			}
