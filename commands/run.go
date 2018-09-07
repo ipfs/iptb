@@ -49,31 +49,27 @@ var RunCmd = cli.Command{
 		}
 
 		var args [][]string
-		var terminatorPresent []bool
+		var terminatorPresent bool
 		if c.IsSet("stdin") {
+			terminatorPresent = false
 			scanner := bufio.NewScanner(os.Stdin)
 			for scanner.Scan() {
 				tokens := strings.Fields(scanner.Text())
-				term := tokens[0] == "--"
-				if term {
-					tokens = tokens[1:]
-				}
-				terminatorPresent = append(terminatorPresent, term)
 				args = append(args, tokens)
 			}
 		} else {
+			terminatorPresent = c.IsSet("terminator")
 			cArgsStr := make([]string, c.NArg())
 			for i, arg := range c.Args() {
 				cArgsStr[i] = arg
 			}
 			args = append(args, cArgsStr)
-			terminatorPresent = append(terminatorPresent, c.IsSet("terminator"))
 		}
 
 		ranges := make([][]int, len(args))
 		runCmds := make([]outputFunc, len(args))
 		for i, cmd := range args {
-			nodeRange, tokens := parseCommand(cmd, terminatorPresent[i])
+			nodeRange, tokens := parseCommand(cmd, terminatorPresent)
 			if nodeRange == "" {
 				nodeRange = fmt.Sprintf("[0-%d]", len(nodes)-1)
 			}

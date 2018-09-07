@@ -63,6 +63,10 @@ func parseCommand(args []string, terminator bool) (string, []string) {
 		return args[0], []string{}
 	}
 
+	if args[0] == "--" {
+		return "", args[1:]
+	}
+
 	arguments := args[1:]
 
 	if arguments[0] == "--" {
