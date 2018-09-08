@@ -39,9 +39,9 @@
     },
     {
       "author": "magik6k",
-      "hash": "QmXUU23sGKdT7AHpyJ4aSvYpXbWjbiuYG1CYhZ3ai3btkG",
+      "hash": "QmYVqYJTVjetcf1guieEgWpK1PZtHPytP624vKzTF1P3r2",
       "name": "go-ipfs-config",
-      "version": "0.2.7"
+      "version": "0.2.8"
     }
   ],
   "gxVersion": "0.6.0",
