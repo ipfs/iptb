@@ -7,12 +7,14 @@ import (
 	"io"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	cli "github.com/urfave/cli"
 
 	"github.com/ipfs/iptb/testbed"
 	"github.com/ipfs/iptb/testbed/interfaces"
+	"github.com/mattn/go-shellwords"
 )
 
 var RunCmd = cli.Command{
@@ -58,7 +60,7 @@ var RunCmd = cli.Command{
 				builder.WriteString("-- ")
 			}
 			for i, arg := range c.Args() {
-				builder.WriteString(arg)
+				builder.WriteString(strconv.Quote(arg))
 				if i != c.NArg()-1 {
 					builder.WriteString(" ")
 				}
@@ -68,12 +70,17 @@ var RunCmd = cli.Command{
 
 		var args [][]string
 		scanner := bufio.NewScanner(reader)
+		line := 1
 		for scanner.Scan() {
-			tokens := strings.Fields(scanner.Text())
+			tokens, err := shellwords.Parse(scanner.Text())
+			if err != nil {
+				return fmt.Errorf("parser error on line %d: %s", line, err)
+			}
 			if strings.HasPrefix(tokens[0], "#") {
 				continue
 			}
 			args = append(args, tokens)
+			line++
 		}
 
 		ranges := make([][]int, len(args))
