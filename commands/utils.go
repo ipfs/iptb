@@ -123,10 +123,10 @@ func expandDashRange(s string) ([]int, error) {
 }
 
 type Result struct {
-	Node        int
-	Output      testbedi.Output
-	Error       error
-	TimeElapsed float64
+	Node    int
+	Output  testbedi.Output
+	Error   error
+	Elapsed float64
 }
 
 type outputFunc func(testbedi.Core) (testbedi.Output, error)
@@ -151,10 +151,10 @@ func mapWithOutput(list []int, nodes []testbedi.Core, fn outputFunc) ([]Result, 
 			defer lk.Unlock()
 
 			results[i] = Result{
-				Node:        n,
-				Output:      out,
-				Error:       errors.Wrapf(err, "node[%d]", n),
-				TimeElapsed: elapsed.Seconds(),
+				Node:    n,
+				Output:  out,
+				Error:   errors.Wrapf(err, "node[%d]", n),
+				Elapsed: elapsed.Seconds(),
 			}
 		}(i, n, nodes[n])
 	}
@@ -190,7 +190,7 @@ func buildReport(results []Result, encoding string) error {
 
 		if rs.Output != nil {
 			if encoding == "text" {
-				fmt.Printf("node[%d] exit %d Elapsed %.4fs \n", rs.Node, rs.Output.ExitCode(), rs.TimeElapsed)
+				fmt.Printf("node[%d] exit %d Elapsed %.4fs \n", rs.Node, rs.Output.ExitCode(), rs.Elapsed)
 				if rs.Output.Error() != nil {
 					fmt.Printf("%s", rs.Output.Error())
 				}
