@@ -84,7 +84,7 @@ var LogsCmd = cli.Command{
 			return err
 		}
 
-		return buildReport(results, "", false)
+		return buildReport(results, "text")
 	},
 }
 

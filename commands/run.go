@@ -22,9 +22,10 @@ var RunCmd = cli.Command{
 			Name:   "terminator",
 			Hidden: true,
 		},
-		cli.BoolFlag{
-			Name:  "stats",
-			Usage: "Output statistics on the command execution",
+		cli.StringFlag{
+			Name:  "encoding",
+			Usage: "Specify the output format, current options JSON and text",
+			Value: "text",
 		},
 	},
 	Before: func(c *cli.Context) error {
@@ -37,8 +38,19 @@ var RunCmd = cli.Command{
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
 		flagTestbed := c.GlobalString("testbed")
-		flagStats := c.Bool("stats")
+		flagFormat := c.String("encoding")
+		// Compare everything to lower to make it case insentive
+		flagFormatLwr := strings.ToLower(flagFormat)
 
+		// Parse output format
+		switch flagFormatLwr {
+		case "text":
+			// input is correct
+		case "json":
+			// input is correct
+		default:
+			NewUsageError("the output encoding provided is not parsable")
+		}
 		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 		nodes, err := tb.Nodes()
 		if err != nil {
@@ -65,6 +77,6 @@ var RunCmd = cli.Command{
 			return err
 		}
 
-		return buildReport(results, strings.Join(args[:], " "), flagStats)
+		return buildReport(results, flagFormatLwr)
 	},
 }

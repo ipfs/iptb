@@ -46,10 +46,6 @@ $ iptb auto           -count 5 -type <type>
 			Name:  "start",
 			Usage: "starts nodes immediately",
 		},
-		cli.BoolFlag{
-			Name:  "stats",
-			Usage: "Output statistics on the command execution",
-		},
 	},
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
@@ -58,7 +54,6 @@ $ iptb auto           -count 5 -type <type>
 		flagStart := c.Bool("start")
 		flagCount := c.Int("count")
 		flagForce := c.Bool("force")
-		flagStats := c.Bool("stats")
 
 		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 		if err := testbed.AlreadyInitCheck(tb.Dir(), flagForce); err != nil {
@@ -93,7 +88,7 @@ $ iptb auto           -count 5 -type <type>
 			return err
 		}
 
-		if err := buildReport(results, "Initialize Nodes", flagStats); err != nil {
+		if err := buildReport(results, "text"); err != nil {
 			return err
 		}
 
@@ -107,7 +102,7 @@ $ iptb auto           -count 5 -type <type>
 				return err
 			}
 
-			if err := buildReport(results, "Start nodes", flagStats); err != nil {
+			if err := buildReport(results, "text"); err != nil {
 				return err
 			}
 		}

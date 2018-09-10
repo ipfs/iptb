@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -181,7 +180,7 @@ func validRange(list []int, total int) error {
 	return nil
 }
 
-func buildReport(results []Result, command string, statsFlag bool) error {
+func buildReport(results []Result, encoding string) error {
 	var errs []error
 
 	for _, rs := range results {
@@ -190,77 +189,25 @@ func buildReport(results []Result, command string, statsFlag bool) error {
 		}
 
 		if rs.Output != nil {
-			fmt.Printf("node[%d] exit %d\n", rs.Node, rs.Output.ExitCode())
-			if rs.Output.Error() != nil {
-				fmt.Printf("%s", rs.Output.Error())
+			if encoding == "text" {
+				fmt.Printf("node[%d] exit %d Elapsed %.4fs \n", rs.Node, rs.Output.ExitCode(), rs.TimeElapsed)
+				if rs.Output.Error() != nil {
+					fmt.Printf("%s", rs.Output.Error())
+				}
+
+			} else {
+				rsJSON, _ := json.Marshal(rs)
+				fmt.Printf("%s\n", rsJSON)
 			}
-
 			fmt.Println()
-
 			io.Copy(os.Stdout, rs.Output.Stdout())
 			io.Copy(os.Stdout, rs.Output.Stderr())
-
-			fmt.Println()
 		}
 
 	}
-	if statsFlag {
-		stats, err := buildStats(results)
-		if err != nil {
-			errs = append(errs, err)
-		} else {
-			statsJSON, _ := json.Marshal(stats)
-			fmt.Printf("Executed command < %s > on %d node(s) \nTime Statistics %s \n", command, len(results), string(statsJSON))
-		}
-	}
-
 	if len(errs) != 0 {
 		return cli.NewMultiError(errs...)
 	}
 
 	return nil
-}
-
-type Stats struct {
-	Mean      float64
-	Std       float64
-	Max       float64
-	Quartile3 float64
-	Median    float64
-	Quartile1 float64
-	Min       float64
-}
-
-func buildStats(results []Result) (Stats, error) {
-	if len(results) == 0 {
-		return Stats{}, errors.New("Results are empty")
-	}
-	sum := 0.
-	sumSquarred := 0.
-	min := results[0].TimeElapsed
-	max := results[0].TimeElapsed
-	for _, rs := range results {
-		sum += rs.TimeElapsed
-		sumSquarred += rs.TimeElapsed * rs.TimeElapsed
-		if rs.TimeElapsed < min {
-			min = rs.TimeElapsed
-		}
-		if rs.TimeElapsed > max {
-			max = rs.TimeElapsed
-		}
-	}
-
-	mean := sum / float64(len(results))
-	variance := sumSquarred/float64(len(results)) - mean*mean
-
-	return Stats{
-		Mean:      mean,
-		Std:       math.Sqrt(variance),
-		Max:       max,
-		Quartile3: 0.,
-		Median:    0.,
-		Quartile1: 0.,
-		Min:       min,
-	}, nil
-
 }
