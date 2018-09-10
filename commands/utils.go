@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -129,6 +130,15 @@ type Result struct {
 	Elapsed float64
 }
 
+type output struct {
+	Node         int
+	ExitCode     int
+	Errors       error
+	PluginStdOut string
+	PluginStdErr string
+	Elapsed      float64
+}
+
 type outputFunc func(testbedi.Core) (testbedi.Output, error)
 
 func mapWithOutput(list []int, nodes []testbedi.Core, fn outputFunc) ([]Result, error) {
@@ -194,14 +204,28 @@ func buildReport(results []Result, encoding string) error {
 				if rs.Output.Error() != nil {
 					fmt.Printf("%s", rs.Output.Error())
 				}
-
+				io.Copy(os.Stdout, rs.Output.Stdout())
+				io.Copy(os.Stdout, rs.Output.Stderr())
 			} else {
-				rsJSON, _ := json.Marshal(rs)
+				pluginOut := ""
+				pluginErr := ""
+				if b, err := ioutil.ReadAll(rs.Output.Stdout()); err == nil {
+					pluginOut = string(b)
+				}
+				if b, err := ioutil.ReadAll(rs.Output.Stderr()); err == nil {
+					pluginErr = string(b)
+				}
+				rsJSON, _ := json.Marshal(output{
+					Node:         rs.Node,
+					ExitCode:     rs.Output.ExitCode(),
+					Errors:       rs.Output.Error(),
+					PluginStdOut: pluginOut,
+					PluginStdErr: pluginErr,
+					Elapsed:      rs.Elapsed,
+				})
 				fmt.Printf("%s\n", rsJSON)
 			}
 			fmt.Println()
-			io.Copy(os.Stdout, rs.Output.Stdout())
-			io.Copy(os.Stdout, rs.Output.Stderr())
 		}
 
 	}
