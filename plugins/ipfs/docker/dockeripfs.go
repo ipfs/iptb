@@ -184,6 +184,9 @@ func (l *DockerIpfs) Start(ctx context.Context, wait bool, args ...string) (test
 	}
 
 	fargs := []string{"run", "-d", "-v", l.dir + ":/data/ipfs", l.image}
+	if len(args) > 0 {
+		fargs = append(fargs, "daemon")
+	}
 	fargs = append(fargs, args...)
 	cmd := exec.Command("docker", fargs...)
 	out, err := cmd.CombinedOutput()
