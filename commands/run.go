@@ -12,9 +12,9 @@ import (
 
 	cli "github.com/urfave/cli"
 
+	"github.com/gxed/go-shellwords"
 	"github.com/ipfs/iptb/testbed"
 	"github.com/ipfs/iptb/testbed/interfaces"
-	"github.com/gxed/go-shellwords"
 )
 
 var RunCmd = cli.Command{
@@ -58,6 +58,8 @@ var RunCmd = cli.Command{
 				return err
 			}
 			if finfo.Size() == 0 && finfo.Mode()&os.ModeNamedPipe == 0 {
+				cli.ShowCommandHelp(c, "run")
+				fmt.Println()
 				return fmt.Errorf("error: no command input and stdin is empty")
 			}
 			reader = bufio.NewReader(os.Stdin)
