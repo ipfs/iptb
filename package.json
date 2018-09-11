@@ -18,6 +18,12 @@
       "hash": "QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy",
       "name": "errors",
       "version": "0.0.1"
+    },
+    {
+      "author": "dgrisham",
+      "hash": "QmWnA5hxsXLWGSD2Wh16d1c4FPVcs4Qm4xwPiwsJdXgkFX",
+      "name": "go-shellwords",
+      "version": "0.0.0"
     }
   ],
   "gxVersion": "0.6.0",
