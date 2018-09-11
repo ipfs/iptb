@@ -204,6 +204,7 @@ func buildReport(results []Result, encoding string) error {
 				if rs.Output.Error() != nil {
 					fmt.Printf("%s", rs.Output.Error())
 				}
+				fmt.Println()
 				io.Copy(os.Stdout, rs.Output.Stdout())
 				io.Copy(os.Stdout, rs.Output.Stderr())
 			} else {
@@ -220,7 +221,7 @@ func buildReport(results []Result, encoding string) error {
 				}
 				pluginErr := string(pluginErrB)
 				// JSONify the plugin output
-				rsJSON, _ := json.Marshal(output{
+				rsJSON, err := json.Marshal(output{
 					Node:         rs.Node,
 					ExitCode:     rs.Output.ExitCode(),
 					Error:        rs.Output.Error(),
@@ -228,11 +229,18 @@ func buildReport(results []Result, encoding string) error {
 					PluginStderr: pluginErr,
 					Elapsed:      rs.Elapsed.Seconds(),
 				})
+
+				if err != nil {
+					errs = append(errs, err)
+				}
 				fmt.Printf("%s\n", rsJSON)
 			}
-			fmt.Println()
 		}
 
+	}
+	// Add an empty line between the commands if the encoding is not human readable
+	if encoding != "text" {
+		fmt.Println()
 	}
 	if len(errs) != 0 {
 		return cli.NewMultiError(errs...)
