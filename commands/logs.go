@@ -31,6 +31,7 @@ var LogsCmd = cli.Command{
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
 		flagTestbed := c.GlobalString("testbed")
+		flagEncoding := c.GlobalString("encoding")
 		flagErr := c.BoolT("err")
 		flagOut := c.BoolT("out")
 
@@ -84,7 +85,7 @@ var LogsCmd = cli.Command{
 			return err
 		}
 
-		return buildReport(results, "text")
+		return buildReport(results, flagEncoding)
 	},
 }
 

@@ -19,6 +19,7 @@ var StopCmd = cli.Command{
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
 		flagTestbed := c.GlobalString("testbed")
+		flagEncoding := c.GlobalString("encoding")
 
 		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 		nodes, err := tb.Nodes()
@@ -46,6 +47,6 @@ var StopCmd = cli.Command{
 			return err
 		}
 
-		return buildReport(results, "text")
+		return buildReport(results, flagEncoding)
 	},
 }

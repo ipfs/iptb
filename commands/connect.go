@@ -50,6 +50,8 @@ INPUT         EXPANDED
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
 		flagTestbed := c.GlobalString("testbed")
+		flagEncoding := c.GlobalString("encoding")
+
 		flagTimeout := c.String("timeout")
 
 		timeout, err := time.ParseDuration(flagTimeout)
@@ -58,6 +60,7 @@ INPUT         EXPANDED
 		}
 		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 
+		var results []Result
 		// Case range is specified
 		args := c.Args()
 		switch c.NArg() {
@@ -72,14 +75,19 @@ INPUT         EXPANDED
 				return err
 			}
 
-			return connectNodes(tb, fromto, fromto, timeout)
+			results, err = connectNodes(tb, fromto, fromto, timeout)
+			if err != nil {
+				return err
+			}
 		case 1:
 			fromto, err := parseRange(args[0])
 			if err != nil {
 				return err
 			}
-
-			return connectNodes(tb, fromto, fromto, timeout)
+			results, err = connectNodes(tb, fromto, fromto, timeout)
+			if err != nil {
+				return err
+			}
 		case 2:
 			from, err := parseRange(args[0])
 			if err != nil {
@@ -90,21 +98,23 @@ INPUT         EXPANDED
 			if err != nil {
 				return err
 			}
-
-			return connectNodes(tb, from, to, timeout)
+			results, err = connectNodes(tb, from, to, timeout)
+			if err != nil {
+				return err
+			}
 		default:
 			return NewUsageError("connet accepts between 0 and 2 arguments")
 		}
+		return buildReport(results, flagEncoding)
 	},
 }
 
-func connectNodes(tb testbed.BasicTestbed, from, to []int, timeout time.Duration) error {
+func connectNodes(tb testbed.BasicTestbed, from, to []int, timeout time.Duration) ([]Result, error) {
+	var results []Result
 	nodes, err := tb.Nodes()
 	if err != nil {
-		return err
+		return results, err
 	}
-
-	var results []Result
 	for _, f := range from {
 		for _, t := range to {
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -120,5 +130,5 @@ func connectNodes(tb testbed.BasicTestbed, from, to []int, timeout time.Duration
 		}
 	}
 
-	return buildReport(results, "text")
+	return results, nil
 }

@@ -50,6 +50,7 @@ $ iptb auto           -count 5 -type <type>
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
 		flagTestbed := c.GlobalString("testbed")
+		flagEncoding := c.GlobalString("encoding")
 		flagType := c.String("type")
 		flagStart := c.Bool("start")
 		flagCount := c.Int("count")
@@ -88,7 +89,7 @@ $ iptb auto           -count 5 -type <type>
 			return err
 		}
 
-		if err := buildReport(results, "text"); err != nil {
+		if err := buildReport(results, flagEncoding); err != nil {
 			return err
 		}
 
@@ -102,7 +103,7 @@ $ iptb auto           -count 5 -type <type>
 				return err
 			}
 
-			if err := buildReport(results, "text"); err != nil {
+			if err := buildReport(results, flagEncoding); err != nil {
 				return err
 			}
 		}

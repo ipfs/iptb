@@ -127,15 +127,15 @@ type Result struct {
 	Node    int
 	Output  testbedi.Output
 	Error   error
-	Elapsed float64
+	Elapsed time.Duration
 }
 
 type output struct {
 	Node         int
 	ExitCode     int
-	Errors       error
-	PluginStdOut string
-	PluginStdErr string
+	Error        error
+	PluginStdout string
+	PluginStderr string
 	Elapsed      float64
 }
 
@@ -164,7 +164,7 @@ func mapWithOutput(list []int, nodes []testbedi.Core, fn outputFunc) ([]Result, 
 				Node:    n,
 				Output:  out,
 				Error:   errors.Wrapf(err, "node[%d]", n),
-				Elapsed: elapsed.Seconds(),
+				Elapsed: elapsed,
 			}
 		}(i, n, nodes[n])
 	}
@@ -200,28 +200,33 @@ func buildReport(results []Result, encoding string) error {
 
 		if rs.Output != nil {
 			if encoding == "text" {
-				fmt.Printf("node[%d] exit %d Elapsed %.4fs \n", rs.Node, rs.Output.ExitCode(), rs.Elapsed)
+				fmt.Printf("node[%d] exit %d elapsed %s\n", rs.Node, rs.Output.ExitCode(), rs.Elapsed)
 				if rs.Output.Error() != nil {
 					fmt.Printf("%s", rs.Output.Error())
 				}
 				io.Copy(os.Stdout, rs.Output.Stdout())
 				io.Copy(os.Stdout, rs.Output.Stderr())
 			} else {
-				pluginOut := ""
-				pluginErr := ""
-				if b, err := ioutil.ReadAll(rs.Output.Stdout()); err == nil {
-					pluginOut = string(b)
+				// Transform plugin stdout to string
+				pluginOutB, err := ioutil.ReadAll(rs.Output.Stdout())
+				if err != nil {
+					errs = append(errs, err)
 				}
-				if b, err := ioutil.ReadAll(rs.Output.Stderr()); err == nil {
-					pluginErr = string(b)
+				pluginOut := string(pluginOutB)
+				// Transform plugin stderr to string
+				pluginErrB, err := ioutil.ReadAll(rs.Output.Stderr())
+				if err != nil {
+					errs = append(errs, err)
 				}
+				pluginErr := string(pluginErrB)
+				// JSONify the plugin output
 				rsJSON, _ := json.Marshal(output{
 					Node:         rs.Node,
 					ExitCode:     rs.Output.ExitCode(),
-					Errors:       rs.Output.Error(),
-					PluginStdOut: pluginOut,
-					PluginStdErr: pluginErr,
-					Elapsed:      rs.Elapsed,
+					Error:        rs.Output.Error(),
+					PluginStdout: pluginOut,
+					PluginStderr: pluginErr,
+					Elapsed:      rs.Elapsed.Seconds(),
 				})
 				fmt.Printf("%s\n", rsJSON)
 			}

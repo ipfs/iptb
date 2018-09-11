@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"strings"
 
 	cli "github.com/urfave/cli"
 
@@ -22,35 +21,18 @@ var RunCmd = cli.Command{
 			Name:   "terminator",
 			Hidden: true,
 		},
-		cli.StringFlag{
-			Name:  "encoding",
-			Usage: "Specify the output format, current options JSON and text",
-			Value: "text",
-		},
 	},
 	Before: func(c *cli.Context) error {
 		if present := isTerminatorPresent(c); present {
 			return c.Set("terminator", "true")
 		}
-
 		return nil
 	},
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
 		flagTestbed := c.GlobalString("testbed")
-		flagFormat := c.String("encoding")
-		// Compare everything to lower to make it case insentive
-		flagFormatLwr := strings.ToLower(flagFormat)
+		flagEncoding := c.GlobalString("encoding")
 
-		// Parse output format
-		switch flagFormatLwr {
-		case "text":
-			// input is correct
-		case "json":
-			// input is correct
-		default:
-			NewUsageError("the output encoding provided is not parsable")
-		}
 		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 		nodes, err := tb.Nodes()
 		if err != nil {
@@ -77,6 +59,6 @@ var RunCmd = cli.Command{
 			return err
 		}
 
-		return buildReport(results, flagFormatLwr)
+		return buildReport(results, flagEncoding)
 	},
 }

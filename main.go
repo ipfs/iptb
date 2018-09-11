@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	cli "github.com/urfave/cli"
 
@@ -61,6 +62,11 @@ func main() {
 			EnvVar: "IPTB_ROOT",
 			Hidden: true,
 		},
+		cli.StringFlag{
+			Name:  "encoding",
+			Usage: "Specify the output format, current options JSON and text",
+			Value: "text",
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
@@ -80,6 +86,22 @@ func main() {
 				return err
 			}
 		}
+
+		// Parse encoding
+		flagFormat := c.GlobalString("encoding")
+		// Compare everything to lower to make it case insentive
+		flagFormatLwr := strings.ToLower(flagFormat)
+
+		// Parse output format
+		switch flagFormatLwr {
+		case "text":
+			// input is correct
+		case "json":
+			// input is correct
+		default:
+			return fmt.Errorf("the output encoding specified is not supported")
+		}
+		c.Set("encoding", flagFormatLwr)
 
 		c.Set("IPTB_ROOT", flagRoot)
 		return loadPlugins(path.Join(flagRoot, "plugins"))
