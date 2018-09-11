@@ -34,6 +34,13 @@ var RunCmd = cli.Command{
 	},
 	Before: func(c *cli.Context) error {
 		if c.NArg() == 0 {
+			finfo, err := os.Stdin.Stat()
+			if err != nil {
+				return err
+			}
+			if finfo.Size() == 0 && finfo.Mode()&os.ModeNamedPipe == 0 {
+				return fmt.Errorf("error: no command input and stdin is empty")
+			}
 			return c.Set("stdin", "true")
 		}
 		if present := isTerminatorPresent(c); present {
@@ -53,15 +60,6 @@ var RunCmd = cli.Command{
 
 		var reader io.Reader
 		if c.IsSet("stdin") {
-			finfo, err := os.Stdin.Stat()
-			if err != nil {
-				return err
-			}
-			if finfo.Size() == 0 && finfo.Mode()&os.ModeNamedPipe == 0 {
-				cli.ShowCommandHelp(c, "run")
-				fmt.Println()
-				return fmt.Errorf("error: no command input and stdin is empty")
-			}
 			reader = bufio.NewReader(os.Stdin)
 		} else {
 			var builder strings.Builder
