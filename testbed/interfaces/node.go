@@ -125,7 +125,7 @@ type Core interface {
 	// Stops the node
 	Stop(ctx context.Context) error
 	// Runs a command in the context of the node
-	RunCmd(ctx context.Context, stdin io.Reader, args ...string) (Output, error)
+	RunCmd(ctx context.Context, stdin io.Reader, opts []string, args ...string) (Output, error)
 	// Connect the node to another
 	Connect(ctx context.Context, n Core) error
 	// Starts a shell in the context of the node
