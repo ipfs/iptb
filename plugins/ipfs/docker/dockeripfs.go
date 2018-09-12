@@ -30,7 +30,8 @@ var ErrTimeout = errors.New("timeout")
 var PluginName = "dockeripfs"
 
 const (
-	attrIfName = "ifname"
+	attrIfName    = "ifname"
+	attrContainer = "container"
 )
 
 type DockerIpfs struct {
@@ -113,13 +114,15 @@ func init() {
 	}
 
 	GetAttrList = func() []string {
-		return append(ipfs.GetAttrList(), attrIfName)
+		return append(ipfs.GetAttrList(), attrIfName, attrContainer)
 	}
 
 	GetAttrDesc = func(attr string) (string, error) {
 		switch attr {
 		case attrIfName:
 			return "docker ifname", nil
+		case attrContainer:
+			return "docker container id", nil
 		}
 
 		return ipfs.GetAttrDesc(attr)
@@ -421,6 +424,8 @@ func (l *DockerIpfs) Attr(attr string) (string, error) {
 	switch attr {
 	case attrIfName:
 		return l.getInterfaceName()
+	case attrContainer:
+		return l.getID()
 	}
 
 	return ipfs.GetAttr(l, attr)
