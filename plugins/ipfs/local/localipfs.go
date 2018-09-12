@@ -110,7 +110,7 @@ func GetMetricDesc(attr string) (string, error) {
 
 func (l *LocalIpfs) Init(ctx context.Context, agrs ...string) (testbedi.Output, error) {
 	agrs = append([]string{"ipfs", "init"}, agrs...)
-	output, oerr := l.RunCmd(ctx, nil, agrs...)
+	output, oerr := l.RunCmd(ctx, nil, nil, agrs...)
 	if oerr != nil {
 		return nil, oerr
 	}
@@ -233,12 +233,14 @@ func (l *LocalIpfs) Stop(ctx context.Context) error {
 	return fmt.Errorf("Could not stop localipfs node with pid %d", pid)
 }
 
-func (l *LocalIpfs) RunCmd(ctx context.Context, stdin io.Reader, args ...string) (testbedi.Output, error) {
+func (l *LocalIpfs) RunCmd(ctx context.Context, stdin io.Reader, opts []string, args ...string) (testbedi.Output, error) {
 	env, err := l.env()
 
 	if err != nil {
 		return nil, fmt.Errorf("error getting env: %s", err)
 	}
+
+	args = append(opts, args...)
 
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Env = env
@@ -296,7 +298,7 @@ func (l *LocalIpfs) Connect(ctx context.Context, tbn testbedi.Core) error {
 		return err
 	}
 
-	output, err := l.RunCmd(ctx, nil, "ipfs", "swarm", "connect", swarmaddrs[0])
+	output, err := l.RunCmd(ctx, nil, nil, "ipfs", "swarm", "connect", swarmaddrs[0])
 
 	if err != nil {
 		return err

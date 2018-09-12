@@ -196,7 +196,7 @@ func SwarmAddrs(l testbedi.Core) ([]string, error) {
 		return nil, err
 	}
 
-	output, err := l.RunCmd(context.TODO(), nil, "ipfs", "swarm", "addrs", "local")
+	output, err := l.RunCmd(context.TODO(), nil, nil, "ipfs", "swarm", "addrs", "local")
 	if err != nil {
 		return nil, err
 	}

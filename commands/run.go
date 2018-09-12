@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"strings"
 
 	cli "github.com/urfave/cli"
 
@@ -17,6 +18,12 @@ var RunCmd = cli.Command{
 	Usage:     "run command on specified nodes (or all)",
 	ArgsUsage: "[nodes] -- <command...>",
 	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name: "shortopts",
+		},
+		cli.StringFlag{
+			Name: "longopts",
+		},
 		cli.BoolFlag{
 			Name:   "terminator",
 			Hidden: true,
@@ -32,6 +39,14 @@ var RunCmd = cli.Command{
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
 		flagTestbed := c.GlobalString("testbed")
+
+		var opts []string
+		for _, sopt := range c.String("shortopts") {
+			opts = append(opts, fmt.Sprintf("-%c", sopt))
+		}
+		for _, lopt := range strings.Split(c.String("longopts"), ",") {
+			opts = append(opts, fmt.Sprintf("--%s", lopt))
+		}
 
 		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 		nodes, err := tb.Nodes()
@@ -51,7 +66,7 @@ var RunCmd = cli.Command{
 		}
 
 		runCmd := func(node testbedi.Core) (testbedi.Output, error) {
-			return node.RunCmd(context.Background(), nil, args...)
+			return node.RunCmd(context.Background(), nil, opts, args...)
 		}
 
 		results, err := mapWithOutput(list, nodes, runCmd)

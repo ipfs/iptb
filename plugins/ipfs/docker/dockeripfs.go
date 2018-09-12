@@ -219,17 +219,19 @@ func (l *DockerIpfs) Stop(ctx context.Context) error {
 	return os.Remove(filepath.Join(l.dir, "dockerid"))
 }
 
-func (l *DockerIpfs) RunCmd(ctx context.Context, stdin io.Reader, args ...string) (testbedi.Output, error) {
+func (l *DockerIpfs) RunCmd(ctx context.Context, stdin io.Reader, opts []string, args ...string) (testbedi.Output, error) {
 	id, err := l.getID()
 	if err != nil {
 		return nil, err
 	}
 
 	if stdin != nil {
-		args = append([]string{"exec", "-i", id}, args...)
-	} else {
-		args = append([]string{"exec", id}, args...)
+		opts = append(opts, "-i")
 	}
+
+	var execOpts []string
+	execOpts = append([]string{"exec"}, opts...)
+	args = append(append(execOpts, id), args...)
 
 	cmd := exec.CommandContext(ctx, "docker", args...)
 	cmd.Stdin = stdin
@@ -297,7 +299,7 @@ func (l *DockerIpfs) Connect(ctx context.Context, n testbedi.Core) error {
 	if addr == "" {
 		return fmt.Errorf("could not find valid swarm address for peer %s", n.String())
 	}
-	output, err = l.RunCmd(ctx, nil, "ipfs", "swarm", "connect", addr)
+	output, err = l.RunCmd(ctx, nil, nil, "ipfs", "swarm", "connect", addr)
 
 	if err != nil {
 		return err
@@ -508,7 +510,7 @@ func (l *DockerIpfs) killContainer() error {
 }
 
 func (l *DockerIpfs) getInterfaceName() (string, error) {
-	out, err := l.RunCmd(context.TODO(), nil, "ip", "link")
+	out, err := l.RunCmd(context.TODO(), nil, nil, "ip", "link")
 	if err != nil {
 		return "", err
 	}
