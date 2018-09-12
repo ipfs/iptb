@@ -165,8 +165,6 @@ func mapListWithOutput(ranges [][]int, nodes []testbedi.Core, fns []outputFunc) 
 	}
 
 	if len(errs) != 0 {
-		// TODO: should shape of return error be same as results?
-		//       e.g. return []error instead of error
 		return results, cli.NewMultiError(errs...)
 	}
 
