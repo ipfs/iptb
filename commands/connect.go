@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 	cli "github.com/urfave/cli"
 
 	"github.com/ipfs/iptb/testbed"
+	"github.com/ipfs/iptb/testbed/interfaces"
 )
 
 var ConnectCmd = cli.Command{
@@ -59,6 +61,8 @@ INPUT         EXPANDED
 		}
 
 		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
+		var results []Result
+
 		args := c.Args()
 
 		switch c.NArg() {
@@ -73,14 +77,20 @@ INPUT         EXPANDED
 				return err
 			}
 
-			return connectNodes(tb, fromto, fromto, timeout)
+			results, err = connectNodes(tb, fromto, fromto, timeout)
+			if err != nil {
+				return err
+			}
 		case 1:
 			fromto, err := parseRange(args[0])
 			if err != nil {
 				return err
 			}
 
-			return connectNodes(tb, fromto, fromto, timeout)
+			results, err = connectNodes(tb, fromto, fromto, timeout)
+			if err != nil {
+				return err
+			}
 		case 2:
 			from, err := parseRange(args[0])
 			if err != nil {
@@ -92,38 +102,64 @@ INPUT         EXPANDED
 				return err
 			}
 
-			return connectNodes(tb, from, to, timeout)
+			results, err = connectNodes(tb, from, to, timeout)
+			if err != nil {
+				return err
+			}
 		default:
 			return NewUsageError("connet accepts between 0 and 2 arguments")
 		}
+
+		return buildReport(results)
 	},
 }
 
-func connectNodes(tb testbed.BasicTestbed, from, to []int, timeout time.Duration) error {
+func connectNodes(tb testbed.BasicTestbed, from, to []int, timeout time.Duration) ([]Result, error) {
+	var results []Result
 	nodes, err := tb.Nodes()
+
 	if err != nil {
-		return err
+		return results, err
+	}
+	// synchronization variables
+	var wg sync.WaitGroup
+	var lk sync.Mutex
+
+	// check if the list `to` is a valid range
+	if err := validRange(to, len(nodes)); err != nil {
+		return results, err
+	}
+	// check if the list `from` is a valid range
+	if err := validRange(from, len(nodes)); err != nil {
+		return results, err
 	}
 
-	var results []Result
 	for _, f := range from {
 		for _, t := range to {
 			if f == t {
+				//Skip connecting a node with itself
 				continue
 			}
+			wg.Add(1)
+			go func(from, to int, nodeFrom, nodeTo testbedi.Core) {
+				defer wg.Done()
+				ctx, cancel := context.WithTimeout(context.Background(), timeout)
+				defer cancel()
 
-			ctx, cancel := context.WithTimeout(context.Background(), timeout)
-			defer cancel()
+				err := nodeFrom.Connect(ctx, nodeTo)
 
-			err = nodes[f].Connect(ctx, nodes[t])
+				lk.Lock()
+				defer lk.Unlock()
+				results = append(results, Result{
+					Node:   from,
+					Output: nil,
+					Error:  errors.Wrapf(err, "node[%d] => node[%d]", from, to),
+				})
 
-			results = append(results, Result{
-				Node:   f,
-				Output: nil,
-				Error:  errors.Wrapf(err, "node[%d] => node[%d]", f, t),
-			})
+			}(f, t, nodes[f], nodes[t])
 		}
 	}
 
-	return buildReport(results)
+	wg.Wait()
+	return results, nil
 }
