@@ -20,8 +20,42 @@ import (
 var RunCmd = cli.Command{
 	Category:  "CORE",
 	Name:      "run",
-	Usage:     "run command on specified nodes (or all)",
+	Usage:     "concurrently run command(s) on specified nodes (or all)",
 	ArgsUsage: "[nodes] -- <command...>",
+	Description: `
+Commands may also be passed in via stdin or a pipe, e.g. the command
+
+$ iptb run 0 -- echo "Running on node 0"
+
+can be equivalently written as
+
+$ iptb run <<CMD
+    0 -- echo "Running on node 0"
+  CMD
+
+or
+
+$ echo '0 -- echo "Running on node 0"' | iptb run
+
+All lines starting with '#' will be ignored, which allows for comments:
+
+$ iptb run <<CMD
+    # print ipfs peers
+    0 -- ipfs swarm peers
+  CMD
+
+Multiple commands may also be passed via stdin/pipe:
+
+$ iptb run <<CMDS
+    0     -- echo "Running on node 0"
+    [0,1] -- echo "Running on nodes 0 and 1"
+          -- echo "Running on all nodes"
+  CMDS
+
+Note that any single call to ` + "`iptb run`" + ` runs *all* commands concurrently. So,
+in the above example, there is no guarantee as to the order in which the lines
+are printed.
+`,
 	Flags: []cli.Flag{
 		cli.BoolFlag{
 			Name:   "terminator",
