@@ -147,7 +147,7 @@ func mapListWithOutput(ranges [][]int, nodes []testbedi.Core, fns []outputFunc) 
 
 	for i, list := range ranges {
 		wg.Add(1)
-		go func() {
+		go func(i int, list []int) {
 			defer wg.Done()
 			results_i, err := mapWithOutput(list, nodes, fns[i])
 
@@ -160,7 +160,7 @@ func mapListWithOutput(ranges [][]int, nodes []testbedi.Core, fns []outputFunc) 
 			for j, result := range results_i {
 				results[offsets[i]+j] = result
 			}
-		}()
+		}(i, list)
 		wg.Wait()
 	}
 
