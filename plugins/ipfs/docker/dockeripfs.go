@@ -211,6 +211,10 @@ func (l *DockerIpfs) Start(ctx context.Context, wait bool, args ...string) (test
 		return nil, err
 	}
 
+	if wait {
+		return nil, ipfs.WaitOnAPI(l)
+	}
+
 	return nil, nil
 }
 
