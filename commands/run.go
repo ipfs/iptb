@@ -115,7 +115,7 @@ are printed.
 		for scanner.Scan() {
 			tokens, err := shellwords.Parse(scanner.Text())
 			if err != nil {
-				return fmt.Errorf("parser error on line %d: %s", line, err)
+				return fmt.Errorf("parse error on line %d: %s", line, err)
 			}
 			if strings.HasPrefix(tokens[0], "#") {
 				continue
