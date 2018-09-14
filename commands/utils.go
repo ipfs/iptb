@@ -63,6 +63,10 @@ func parseCommand(args []string, terminator bool) (string, []string) {
 		return args[0], []string{}
 	}
 
+	if args[0] == "--" {
+		return "", args[1:]
+	}
+
 	arguments := args[1:]
 
 	if arguments[0] == "--" {
@@ -127,6 +131,45 @@ type Result struct {
 }
 
 type outputFunc func(testbedi.Core) (testbedi.Output, error)
+
+func mapListWithOutput(ranges [][]int, nodes []testbedi.Core, fns []outputFunc) ([]Result, error) {
+	var wg sync.WaitGroup
+	var lk sync.Mutex
+	var errs []error
+
+	total := 0
+	offsets := make([]int, len(ranges))
+	for i, list := range ranges {
+		offsets[i] = total
+		total += len(list)
+	}
+	results := make([]Result, total)
+
+	for i, list := range ranges {
+		wg.Add(1)
+		go func(i int, list []int) {
+			defer wg.Done()
+			results_i, err := mapWithOutput(list, nodes, fns[i])
+
+			lk.Lock()
+			defer lk.Unlock()
+
+			if err != nil {
+				errs = append(errs, err)
+			}
+			for j, result := range results_i {
+				results[offsets[i]+j] = result
+			}
+		}(i, list)
+		wg.Wait()
+	}
+
+	if len(errs) != 0 {
+		return results, cli.NewMultiError(errs...)
+	}
+
+	return results, nil
+}
 
 func mapWithOutput(list []int, nodes []testbedi.Core, fn outputFunc) ([]Result, error) {
 	var wg sync.WaitGroup
