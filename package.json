@@ -39,9 +39,9 @@
     },
     {
       "author": "magik6k",
-      "hash": "QmYVqYJTVjetcf1guieEgWpK1PZtHPytP624vKzTF1P3r2",
+      "hash": "QmVBUpxsHh53rNcufqxMpLAmz37eGyLJUaexDy1W9YkiNk",
       "name": "go-ipfs-config",
-      "version": "0.2.8"
+      "version": "0.2.9"
     }
   ],
   "gxVersion": "0.6.0",
@@ -50,6 +50,6 @@
   "license": "",
   "name": "iptb",
   "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
-  "version": "1.3.12"
+  "version": "1.3.13"
 }
 
