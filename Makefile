@@ -2,10 +2,13 @@ CLEAN =
 
 all: iptb
 
-iptb:
+deps:
+	gx install
+
+iptb: deps
 	go build
 
-plugins:
+plugins: deps
 	make -C plugins all
 
 install_plugins:

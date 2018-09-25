@@ -1,15 +1,12 @@
 all: ipfslocal ipfsdocker ipfsbrowser
 
-deps:
-	gx install
-
-ipfslocal: deps
+ipfslocal:
 	gx-go rw
 	(cd local/plugin; go build -buildmode=plugin -o ../../../localipfs.so)
 	gx-go uw
 CLEAN += localipfs.so
 
-ipfsdocker: deps
+ipfsdocker:
 	gx-go rw
 	(cd docker/plugin; go build -buildmode=plugin -o ../../../dockeripfs.so)
 	gx-go uw
