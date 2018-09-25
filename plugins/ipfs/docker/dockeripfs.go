@@ -1,4 +1,4 @@
-package main
+package plugindockeripfs
 
 import (
 	"bytes"
@@ -45,88 +45,82 @@ type DockerIpfs struct {
 	mdns        bool
 }
 
-var NewNode testbedi.NewNodeFunc
-var GetAttrDesc testbedi.GetAttrDescFunc
-var GetAttrList testbedi.GetAttrListFunc
+func NewNode(dir string, attrs map[string]string) (testbedi.Core, error) {
+	imagename := "ipfs/go-ipfs"
+	mdns := false
 
-func init() {
-	NewNode = func(dir string, attrs map[string]string) (testbedi.Core, error) {
-		imagename := "ipfs/go-ipfs"
-		mdns := false
+	apiaddr, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/5001")
+	if err != nil {
+		return nil, err
+	}
 
-		apiaddr, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/5001")
+	swarmaddr, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/4001")
+	if err != nil {
+		return nil, err
+	}
+
+	var repobuilder string
+
+	if v, ok := attrs["image"]; ok {
+		imagename = v
+	}
+
+	if v, ok := attrs["repobuilder"]; ok {
+		repobuilder = v
+	} else {
+		ipfspath, err := exec.LookPath("ipfs")
+		if err != nil {
+			return nil, fmt.Errorf("No `repobuilder` provided, could not find ipfs in path")
+		}
+
+		repobuilder = ipfspath
+	}
+
+	if apiaddrstr, ok := attrs["apiaddr"]; ok {
+		var err error
+		apiaddr, err = multiaddr.NewMultiaddr(apiaddrstr)
+
 		if err != nil {
 			return nil, err
 		}
+	}
 
-		swarmaddr, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/4001")
+	if swarmaddrstr, ok := attrs["swarmaddr"]; ok {
+		var err error
+		swarmaddr, err = multiaddr.NewMultiaddr(swarmaddrstr)
+
 		if err != nil {
 			return nil, err
 		}
-
-		var repobuilder string
-
-		if v, ok := attrs["image"]; ok {
-			imagename = v
-		}
-
-		if v, ok := attrs["repobuilder"]; ok {
-			repobuilder = v
-		} else {
-			ipfspath, err := exec.LookPath("ipfs")
-			if err != nil {
-				return nil, fmt.Errorf("No `repobuilder` provided, could not find ipfs in path")
-			}
-
-			repobuilder = ipfspath
-		}
-
-		if apiaddrstr, ok := attrs["apiaddr"]; ok {
-			var err error
-			apiaddr, err = multiaddr.NewMultiaddr(apiaddrstr)
-
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if swarmaddrstr, ok := attrs["swarmaddr"]; ok {
-			var err error
-			swarmaddr, err = multiaddr.NewMultiaddr(swarmaddrstr)
-
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if _, ok := attrs["mdns"]; ok {
-			mdns = true
-		}
-
-		return &DockerIpfs{
-			dir:         dir,
-			image:       imagename,
-			repobuilder: repobuilder,
-			apiaddr:     apiaddr,
-			swarmaddr:   swarmaddr,
-			mdns:        mdns,
-		}, nil
 	}
 
-	GetAttrList = func() []string {
-		return append(ipfs.GetAttrList(), attrIfName, attrContainer)
+	if _, ok := attrs["mdns"]; ok {
+		mdns = true
 	}
 
-	GetAttrDesc = func(attr string) (string, error) {
-		switch attr {
-		case attrIfName:
-			return "docker ifname", nil
-		case attrContainer:
-			return "docker container id", nil
-		}
+	return &DockerIpfs{
+		dir:         dir,
+		image:       imagename,
+		repobuilder: repobuilder,
+		apiaddr:     apiaddr,
+		swarmaddr:   swarmaddr,
+		mdns:        mdns,
+	}, nil
+}
 
-		return ipfs.GetAttrDesc(attr)
+func GetAttrList() []string {
+	return append(ipfs.GetAttrList(), attrIfName, attrContainer)
+}
+
+func GetAttrDesc(attr string) (string, error) {
+	switch attr {
+	case attrIfName:
+		return "docker ifname", nil
+	case attrContainer:
+		return "docker container id", nil
 	}
+
+	return ipfs.GetAttrDesc(attr)
 }
 
 func GetMetricList() []string {

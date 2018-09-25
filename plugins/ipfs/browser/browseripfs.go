@@ -1,4 +1,4 @@
-package main
+package pluginbrowseripfs
 
 import (
 	"context"
@@ -36,71 +36,56 @@ type BrowserIpfs struct {
 	source      string
 }
 
-var NewNode testbedi.NewNodeFunc
-var GetAttrDesc testbedi.GetAttrDescFunc
-var GetAttrList testbedi.GetAttrListFunc
-
-func init() {
-	NewNode = func(dir string, attrs map[string]string) (testbedi.Core, error) {
-		if _, err := exec.LookPath("ipfs"); err != nil {
-			return nil, err
-		}
-
-		if _, err := exec.LookPath("node"); err != nil {
-			return nil, err
-		}
-
-		apiaddr := "/ip4/127.0.0.1/tcp/0"
-		swarmaddr := "/ip4/127.0.0.1/tcp/0"
-
-		if apiaddrstr, ok := attrs["apiaddr"]; ok {
-			apiaddr = apiaddrstr
-		}
-
-		if swarmaddrstr, ok := attrs["swarmaddr"]; ok {
-			swarmaddr = swarmaddrstr
-		}
-
-		// repobuilder is the binary used to run `Init`, a browser ipfs node cannot
-		// do this itself. The repo is largely ignore, but the configuration we want
-		var repobuilder string
-		if v, ok := attrs["repobuilder"]; ok {
-			repobuilder = v
-		} else {
-			jsipfspath, err := exec.LookPath("jsipfs")
-			if err != nil {
-				return nil, fmt.Errorf("No `repobuilder` provided, could not find jsipfs in path")
-			}
-
-			repobuilder = jsipfspath
-		}
-
-		// source is any js (at the moment) script which can read the ipfs repo and expose an ipfs-api
-		// An implementation can be found @ https://github.com/travisperson/js-ipfs-browser-server
-		var source string
-		if v, ok := attrs["source"]; ok {
-			source = v
-		} else {
-			return nil, fmt.Errorf("No `source` provided")
-		}
-
-		return &BrowserIpfs{
-			dir:         dir,
-			apiaddr:     apiaddr,
-			swarmaddr:   swarmaddr,
-			repobuilder: repobuilder,
-			source:      source,
-		}, nil
-
+func NewNode(dir string, attrs map[string]string) (testbedi.Core, error) {
+	if _, err := exec.LookPath("ipfs"); err != nil {
+		return nil, err
 	}
 
-	GetAttrList = func() []string {
-		return []string{}
+	if _, err := exec.LookPath("node"); err != nil {
+		return nil, err
 	}
 
-	GetAttrDesc = func(attr string) (string, error) {
-		return "", nil
+	apiaddr := "/ip4/127.0.0.1/tcp/0"
+	swarmaddr := "/ip4/127.0.0.1/tcp/0"
+
+	if apiaddrstr, ok := attrs["apiaddr"]; ok {
+		apiaddr = apiaddrstr
 	}
+
+	if swarmaddrstr, ok := attrs["swarmaddr"]; ok {
+		swarmaddr = swarmaddrstr
+	}
+
+	// repobuilder is the binary used to run `Init`, a browser ipfs node cannot
+	// do this itself. The repo is largely ignore, but the configuration we want
+	var repobuilder string
+	if v, ok := attrs["repobuilder"]; ok {
+		repobuilder = v
+	} else {
+		jsipfspath, err := exec.LookPath("jsipfs")
+		if err != nil {
+			return nil, fmt.Errorf("No `repobuilder` provided, could not find jsipfs in path")
+		}
+
+		repobuilder = jsipfspath
+	}
+
+	// source is any js (at the moment) script which can read the ipfs repo and expose an ipfs-api
+	// An implementation can be found @ https://github.com/travisperson/js-ipfs-browser-server
+	var source string
+	if v, ok := attrs["source"]; ok {
+		source = v
+	} else {
+		return nil, fmt.Errorf("No `source` provided")
+	}
+
+	return &BrowserIpfs{
+		dir:         dir,
+		apiaddr:     apiaddr,
+		swarmaddr:   swarmaddr,
+		repobuilder: repobuilder,
+		source:      source,
+	}, nil
 
 }
 

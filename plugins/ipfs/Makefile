@@ -5,19 +5,19 @@ deps:
 
 ipfslocal: deps
 	gx-go rw
-	(cd local; go build -buildmode=plugin -o ../../localipfs.so)
+	(cd local/plugin; go build -buildmode=plugin -o ../../../localipfs.so)
 	gx-go uw
 CLEAN += localipfs.so
 
 ipfsdocker: deps
 	gx-go rw
-	(cd docker; go build -buildmode=plugin -o ../../dockeripfs.so)
+	(cd docker/plugin; go build -buildmode=plugin -o ../../../dockeripfs.so)
 	gx-go uw
 CLEAN += dockeripfs.so
 
 ipfsbrowser:
 	gx-go rw
-	(cd browser; go build -buildmode=plugin -o ../../browseripfs.so)
+	(cd browser/plugin; go build -buildmode=plugin -o ../../../browseripfs.so)
 	gx-go uw
 CLEAN += browseripfs.so
 

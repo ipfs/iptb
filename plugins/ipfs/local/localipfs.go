@@ -1,4 +1,4 @@
-package main
+package pluginlocalipfs
 
 import (
 	"context"
@@ -37,75 +37,75 @@ type LocalIpfs struct {
 	mdns      bool
 }
 
-var NewNode testbedi.NewNodeFunc
-var GetAttrDesc testbedi.GetAttrDescFunc
-var GetAttrList testbedi.GetAttrListFunc
+// NewNode creates a localipfs iptb core node that runs ipfs on the local
+// system by using random ports for both the api and the swarm.
+// Attributes
+// - binary: binary to use for Init, Start (defaults to ipfs in path)
+// - apiaddr: multiaddr use for the api (defaults to /ip4/127.0.0.1/tcp/0)
+// - swarmaddr: multiaddr used for swarm (defaults to /ip4/127.0.0.1/tcp/0)
+// - mdns: if present, enables mdns (off by default)
+func NewNode(dir string, attrs map[string]string) (testbedi.Core, error) {
+	mdns := false
+	binary := ""
 
-func init() {
-	NewNode = func(dir string, attrs map[string]string) (testbedi.Core, error) {
-		mdns := false
-		binary := ""
+	var ok bool
 
-		var ok bool
-
-		if binary, ok = attrs["binary"]; !ok {
-			var err error
-			binary, err = exec.LookPath("ipfs")
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		apiaddr, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	if binary, ok = attrs["binary"]; !ok {
+		var err error
+		binary, err = exec.LookPath("ipfs")
 		if err != nil {
 			return nil, err
 		}
+	}
 
-		swarmaddr, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	apiaddr, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	if err != nil {
+		return nil, err
+	}
+
+	swarmaddr, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	if err != nil {
+		return nil, err
+	}
+
+	if apiaddrstr, ok := attrs["apiaddr"]; ok {
+		var err error
+		apiaddr, err = multiaddr.NewMultiaddr(apiaddrstr)
+
 		if err != nil {
 			return nil, err
 		}
-
-		if apiaddrstr, ok := attrs["apiaddr"]; ok {
-			var err error
-			apiaddr, err = multiaddr.NewMultiaddr(apiaddrstr)
-
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if swarmaddrstr, ok := attrs["swarmaddr"]; ok {
-			var err error
-			swarmaddr, err = multiaddr.NewMultiaddr(swarmaddrstr)
-
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if _, ok := attrs["mdns"]; ok {
-			mdns = true
-		}
-
-		return &LocalIpfs{
-			dir:       dir,
-			apiaddr:   apiaddr,
-			swarmaddr: swarmaddr,
-			binary:    binary,
-			mdns:      mdns,
-		}, nil
-
 	}
 
-	GetAttrList = func() []string {
-		return ipfs.GetAttrList()
+	if swarmaddrstr, ok := attrs["swarmaddr"]; ok {
+		var err error
+		swarmaddr, err = multiaddr.NewMultiaddr(swarmaddrstr)
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	GetAttrDesc = func(attr string) (string, error) {
-		return ipfs.GetAttrDesc(attr)
+	if _, ok := attrs["mdns"]; ok {
+		mdns = true
 	}
 
+	return &LocalIpfs{
+		dir:       dir,
+		apiaddr:   apiaddr,
+		swarmaddr: swarmaddr,
+		binary:    binary,
+		mdns:      mdns,
+	}, nil
+
+}
+
+func GetAttrList() []string {
+	return ipfs.GetAttrList()
+}
+
+func GetAttrDesc(attr string) (string, error) {
+	return ipfs.GetAttrDesc(attr)
 }
 
 func GetMetricList() []string {
@@ -428,7 +428,7 @@ func (l *LocalIpfs) GetAttrDesc(attr string) (string, error) {
 	return GetAttrDesc(attr)
 }
 
-func (l *LocalIpfs) GetAttr(attr string) (string, error) {
+func (l *LocalIpfs) Attr(attr string) (string, error) {
 	return ipfs.GetAttr(l, attr)
 }
 
