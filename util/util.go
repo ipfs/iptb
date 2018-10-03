@@ -405,8 +405,8 @@ func starBootstrap(nodes []IpfsNode, icfg *InitCfg) error {
 
 	bcfg.Bootstrap = nil
 	bcfg.Addresses.Swarm = []string{icfg.swarmAddrForPeer(0)}
-	bcfg.Addresses.API = icfg.apiAddrForPeer(0)
-	bcfg.Addresses.Gateway = ""
+	bcfg.Addresses.API = []string{icfg.apiAddrForPeer(0)}
+	bcfg.Addresses.Gateway = []string{}
 	bcfg.Discovery.MDNS.Enabled = icfg.Mdns
 
 	err = king.WriteConfig(bcfg)
@@ -423,12 +423,12 @@ func starBootstrap(nodes []IpfsNode, icfg *InitCfg) error {
 		ba := fmt.Sprintf("%s/ipfs/%s", bcfg.Addresses.Swarm[0], bcfg.Identity.PeerID)
 		ba = strings.Replace(ba, "0.0.0.0", "127.0.0.1", -1)
 		cfg.Bootstrap = []string{ba}
-		cfg.Addresses.Gateway = ""
+		cfg.Addresses.Gateway = []string{}
 		cfg.Discovery.MDNS.Enabled = icfg.Mdns
 		cfg.Addresses.Swarm = []string{
 			icfg.swarmAddrForPeer(i + 1),
 		}
-		cfg.Addresses.API = icfg.apiAddrForPeer(i + 1)
+		cfg.Addresses.API = []string{icfg.apiAddrForPeer(i + 1)}
 
 		err = nd.WriteConfig(cfg)
 		if err != nil {
@@ -446,9 +446,9 @@ func clearBootstrapping(nodes []IpfsNode, icfg *InitCfg) error {
 		}
 
 		cfg.Bootstrap = nil
-		cfg.Addresses.Gateway = ""
+		cfg.Addresses.Gateway = []string{}
 		cfg.Addresses.Swarm = []string{icfg.swarmAddrForPeer(i)}
-		cfg.Addresses.API = icfg.apiAddrForPeer(i)
+		cfg.Addresses.API = []string{icfg.apiAddrForPeer(i)}
 		cfg.Discovery.MDNS.Enabled = icfg.Mdns
 		err = nd.WriteConfig(cfg)
 		if err != nil {
