@@ -45,9 +45,9 @@
     }
   ],
   "gxVersion": "0.6.0",
-  "issues_url": "",
+  "issues_url": "https://github.com/ipfs/iptb/issues",
   "language": "go",
-  "license": "",
+  "license": "MIT",
   "name": "iptb",
   "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
   "version": "1.3.7"
