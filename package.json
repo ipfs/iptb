@@ -50,6 +50,6 @@
   "license": "MIT",
   "name": "iptb",
   "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
-  "version": "99.3.9"
+  "version": "99.4.0"
 }
 
