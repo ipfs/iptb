@@ -139,7 +139,7 @@ func GetMetricDesc(attr string) (string, error) {
 
 /// Core Interface
 
-func (l *DockerIpfs) Init(ctx context.Context, agrs ...string) (testbedi.Output, error) {
+func (l *DockerIpfs) Init(ctx context.Context, args ...string) (testbedi.Output, error) {
 	env, err := l.env()
 	if err != nil {
 		return nil, fmt.Errorf("error getting env: %s", err)
