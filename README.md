@@ -6,8 +6,12 @@ libp2p networks easy!
 
 ### Example
 
+_After installing iptb and plugins_
+
 ```
-$ iptb auto -count 5 >/dev/null
+$ iptb auto -type localipfs -count 5
+
+<output removed>
 
 $ iptb start
 
@@ -69,8 +73,12 @@ _Note: For MacOS golang v1.11 is needed to support plugin loading
 (see [golang/go#24653](https://github.com/golang/go/issues/24653) for more information)_
 
 ```
-$ go get github.com/ipfs/iptb
+$ go get -d github.com/ipfs/iptb
+$ cd $GOPATH/src/github.com/ipfs/iptb
+$ make install
 ```
+
+_Note: you will also need to install plugins, iptb doesn't do much itself_
 
 ### Plugins
 
