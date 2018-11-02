@@ -4,13 +4,6 @@ all: iptb
 
 iptb:
 	go build
-
-plugins:
-	make -C plugins all
-
-install_plugins:
-	make -C plugins install
-
 CLEAN += iptb
 
 install:

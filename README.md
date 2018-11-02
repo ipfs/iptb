@@ -4,10 +4,13 @@
 locally on your computer. Spin up 1000s of nodes! Using `iptb` makes testing
 libp2p networks easy!
 
-### Example
+For working with IPFS please see [ipfs/iptb-plugins](https://github.com/ipfs/iptb-plugins).
+
+### Example (ipfs)
 
 ```
-$ iptb auto -count 5 >/dev/null
+$ iptb auto -type <plugin> -count 5
+<output removed>
 
 $ iptb start
 
@@ -59,6 +62,7 @@ COMMANDS:
 
 GLOBAL OPTIONS:
    --testbed value  Name of testbed to use under IPTB_ROOT (default: "default") [$IPTB_TESTBED]
+   --quiet          Suppresses extra output from iptb
    --help, -h       show help
    --version, -v    print the version
 ```
@@ -77,10 +81,7 @@ $ go get github.com/ipfs/iptb
 Plugins are now used to implement support for managining nodes. Plugins are
 stored under `$IPTB_ROOT/plugins` (see [configuration](#configuration))
 
-```
-make plugins
-make install_plugins
-```
+Plugins for the IPFS project can be found in [ipfs/iptb-plugins](https://github.com/ipfs/iptb-plugins).
 
 ### Configuration
 
