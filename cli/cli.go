@@ -54,6 +54,10 @@ func NewCli() *cli.App {
 			EnvVar: "IPTB_TESTBED",
 			Usage:  "Name of testbed to use under IPTB_ROOT",
 		},
+		cli.BoolFlag{
+			Name:  "quiet",
+			Usage: "Suppresses extra output from iptb",
+		},
 		cli.StringFlag{
 			Name:   "IPTB_ROOT",
 			EnvVar: "IPTB_ROOT",

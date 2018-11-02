@@ -85,6 +85,7 @@ are printed.
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
 		flagTestbed := c.GlobalString("testbed")
+		flagQuiet := c.GlobalBool("quiet")
 
 		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 		nodes, err := tb.Nodes()
@@ -144,6 +145,6 @@ are printed.
 		}
 
 		results, err := mapListWithOutput(ranges, nodes, runCmds)
-		return buildReport(results)
+		return buildReport(results, flagQuiet)
 	},
 }

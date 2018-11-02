@@ -51,6 +51,7 @@ INPUT         EXPANDED
 	Action: func(c *cli.Context) error {
 		flagRoot := c.GlobalString("IPTB_ROOT")
 		flagTestbed := c.GlobalString("testbed")
+		flagQuiet := c.GlobalBool("quiet")
 		flagTimeout := c.String("timeout")
 
 		timeout, err := time.ParseDuration(flagTimeout)
@@ -61,6 +62,7 @@ INPUT         EXPANDED
 		tb := testbed.NewTestbed(path.Join(flagRoot, "testbeds", flagTestbed))
 		args := c.Args()
 
+		var results []Result
 		switch c.NArg() {
 		case 0:
 			nodes, err := tb.Nodes()
@@ -73,14 +75,20 @@ INPUT         EXPANDED
 				return err
 			}
 
-			return connectNodes(tb, fromto, fromto, timeout)
+			results, err = connectNodes(tb, fromto, fromto, timeout)
+			if err != nil {
+				return err
+			}
 		case 1:
 			fromto, err := parseRange(args[0])
 			if err != nil {
 				return err
 			}
 
-			return connectNodes(tb, fromto, fromto, timeout)
+			results, err = connectNodes(tb, fromto, fromto, timeout)
+			if err != nil {
+				return err
+			}
 		case 2:
 			from, err := parseRange(args[0])
 			if err != nil {
@@ -92,20 +100,26 @@ INPUT         EXPANDED
 				return err
 			}
 
-			return connectNodes(tb, from, to, timeout)
+			results, err = connectNodes(tb, from, to, timeout)
+			if err != nil {
+				return err
+			}
 		default:
 			return NewUsageError("connet accepts between 0 and 2 arguments")
 		}
+
+		return buildReport(results, flagQuiet)
 	},
 }
 
-func connectNodes(tb testbed.BasicTestbed, from, to []int, timeout time.Duration) error {
+func connectNodes(tb testbed.BasicTestbed, from, to []int, timeout time.Duration) ([]Result, error) {
+	var results []Result
+
 	nodes, err := tb.Nodes()
 	if err != nil {
-		return err
+		return results, err
 	}
 
-	var results []Result
 	for _, f := range from {
 		for _, t := range to {
 			if f == t {
@@ -125,5 +139,5 @@ func connectNodes(tb testbed.BasicTestbed, from, to []int, timeout time.Duration
 		}
 	}
 
-	return buildReport(results)
+	return results, nil
 }
