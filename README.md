@@ -39,7 +39,7 @@ USAGE:
    iptb [global options] command [command options] [arguments...]
 
 VERSION:
-   0.0.0
+   2.0.0
 
 COMMANDS:
      auto     create default testbed and initialize

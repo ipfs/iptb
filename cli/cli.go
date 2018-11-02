@@ -47,6 +47,7 @@ func loadPlugins(dir string) error {
 func NewCli() *cli.App {
 	app := cli.NewApp()
 	app.Usage = "iptb is a tool for managing test clusters of libp2p nodes"
+	app.Version = "2.0.0"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:   "testbed",
