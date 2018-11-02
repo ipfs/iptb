@@ -218,12 +218,18 @@ func validRange(list []int, total int) error {
 	return nil
 }
 
-func buildReport(results []Result) error {
+func buildReport(results []Result, quiet bool) error {
 	var errs []error
 
 	for _, rs := range results {
 		if rs.Error != nil {
 			errs = append(errs, rs.Error)
+		}
+
+		if quiet {
+			io.Copy(os.Stdout, rs.Output.Stdout())
+			io.Copy(os.Stdout, rs.Output.Stderr())
+			continue
 		}
 
 		if rs.Output != nil {
