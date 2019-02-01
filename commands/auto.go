@@ -39,8 +39,9 @@ $ iptb auto           -count 5 -type <type>
 			Usage: "force overwrite of existing nodespecs",
 		},
 		cli.StringFlag{
-			Name:  "type",
-			Usage: "kind of nodes to initialize",
+			Name:   "type",
+			Usage:  "kind of nodes to initialize",
+			EnvVar: "IPTB_PLUGIN",
 		},
 		cli.BoolFlag{
 			Name:  "start",
