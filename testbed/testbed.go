@@ -58,7 +58,7 @@ func (tb BasicTestbed) Name() string {
 
 func AlreadyInitCheck(dir string, force bool) error {
 	if _, err := os.Stat(filepath.Join(dir, "nodespec.json")); !os.IsNotExist(err) {
-		if !force && !iptbutil.YesNoPrompt("testbed nodes already exist, overwrite? [y/n]") {
+		if !force && !iptbutil.YesNoPrompt("testbed nodes already exist, overwrite?") {
 			return nil
 		}
 
