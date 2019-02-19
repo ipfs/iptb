@@ -136,6 +136,8 @@ type Core interface {
 	// Type returns a string that identifies the implementation
 	// Examples localipfs, dockeripfs, etc.
 	Type() string
+	// IsAlive returns true if the node is running and false otherwise
+	IsAlive() bool
 
 	String() string
 }
