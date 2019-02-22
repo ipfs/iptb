@@ -136,7 +136,8 @@ type Core interface {
 	// Type returns a string that identifies the implementation
 	// Examples localipfs, dockeripfs, etc.
 	Type() string
-	// IsAlive returns true if the node is running and false otherwise
+	// IsAlive returns true if the node is running and false otherwise.
+	// When IsAlive returns true, RunCmd can be called
 	IsAlive() bool
 
 	String() string
