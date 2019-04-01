@@ -69,7 +69,7 @@ func loadPluginCore(pl *plugin.Plugin, plg *IptbPlugin) error {
 
 	NewNode, ok := NewNodeSym.(*testbedi.NewNodeFunc)
 	if !ok {
-		return fmt.Errorf("Error: could not cast `NewNode` of %s", pl)
+		return fmt.Errorf("Error: could not cast `NewNode` of %v", pl)
 	}
 
 	PluginNameSym, err := pl.Lookup("PluginName")
@@ -79,7 +79,7 @@ func loadPluginCore(pl *plugin.Plugin, plg *IptbPlugin) error {
 
 	PluginName, ok := PluginNameSym.(*string)
 	if !ok {
-		return fmt.Errorf("Error: could not cast `PluginName` of %s", pl)
+		return fmt.Errorf("Error: could not cast `PluginName` of %v", pl)
 	}
 
 	plg.PluginName = *PluginName
@@ -97,7 +97,7 @@ func loadPluginAttr(pl *plugin.Plugin, plg *IptbPlugin) (bool, error) {
 
 	GetAttrList, ok := GetAttrListSym.(*testbedi.GetAttrListFunc)
 	if !ok {
-		return true, fmt.Errorf("Error: could not cast `GetAttrList` of %s", pl)
+		return true, fmt.Errorf("Error: could not cast `GetAttrList` of %v", pl)
 	}
 
 	GetAttrDescSym, err := pl.Lookup("GetAttrDesc")
@@ -107,7 +107,7 @@ func loadPluginAttr(pl *plugin.Plugin, plg *IptbPlugin) (bool, error) {
 
 	GetAttrDesc, ok := GetAttrDescSym.(*testbedi.GetAttrDescFunc)
 	if !ok {
-		return true, fmt.Errorf("Error: could not cast `GetAttrDesc` of %s", pl)
+		return true, fmt.Errorf("Error: could not cast `GetAttrDesc` of %v", pl)
 	}
 
 	plg.GetAttrList = *GetAttrList
