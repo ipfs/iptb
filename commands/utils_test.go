@@ -88,13 +88,13 @@ func TestParseCommand(t *testing.T) {
 func TestParseAttrSlice(t *testing.T) {
 	cases := []struct {
 		inputArgs     []string
-		expectedAttrs map[string]interface{}
+		expectedAttrs map[string]string
 	}{
-		{[]string{}, map[string]interface{}{}},
-		{[]string{"foo"}, map[string]interface{}{"foo": "true"}},
-		{[]string{"foo,bar"}, map[string]interface{}{"foo": "bar"}},
-		{[]string{"foo,bar,thing"}, map[string]interface{}{"foo": "bar,thing"}},
-		{[]string{"foo,bar", "one,two"}, map[string]interface{}{"foo": "bar", "one": "two"}},
+		{[]string{}, map[string]string{}},
+		{[]string{"foo"}, map[string]string{"foo": "true"}},
+		{[]string{"foo,bar"}, map[string]string{"foo": "bar"}},
+		{[]string{"foo,bar,thing"}, map[string]string{"foo": "bar,thing"}},
+		{[]string{"foo,bar", "one,two"}, map[string]string{"foo": "bar", "one": "two"}},
 	}
 
 	for _, c := range cases {
