@@ -33,7 +33,6 @@ type Libp2p interface {
 }
 
 type Config interface {
-	Core
 	// Config returns the configuration of the node
 	Config() (interface{}, error)
 	// WriteConfig writes the configuration of the node
@@ -43,7 +42,6 @@ type Config interface {
 // Attributes are ways to shape process execution and additional information that alters the
 // environment the process executes in
 type Attribute interface {
-	Core
 	// Attr returns the value of attr
 	Attr(attr string) (string, error)
 	// SetAttr sets the attr to val
@@ -71,7 +69,6 @@ type Attribute interface {
 
 // Metrics are ways to gather information during process execution
 type Metric interface {
-	Core
 	// Events returns reader for events
 	Events() (io.ReadCloser, error)
 	// StderrReader returns reader of stderr for the node
