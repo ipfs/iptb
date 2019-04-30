@@ -12,9 +12,9 @@ import (
 
 	cli "github.com/urfave/cli"
 
-	"github.com/gxed/go-shellwords"
 	"github.com/ipfs/iptb/testbed"
 	"github.com/ipfs/iptb/testbed/interfaces"
+	"github.com/mattn/go-shellwords"
 )
 
 var RunCmd = cli.Command{
