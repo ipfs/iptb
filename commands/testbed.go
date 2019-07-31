@@ -32,8 +32,9 @@ var TestbedCreateCmd = cli.Command{
 			Usage: "force overwrite of existing testbed",
 		},
 		cli.StringFlag{
-			Name:  "type",
-			Usage: "kind of nodes to initialize",
+			Name:   "type",
+			Usage:  "kind of nodes to initialize",
+			EnvVar: "IPTB_PLUGIN",
 		},
 		cli.StringSliceFlag{
 			Name:  "attr",

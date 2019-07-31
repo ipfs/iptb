@@ -132,8 +132,9 @@ var AttrListCmd = cli.Command{
 	ArgsUsage: "<node>",
 	Flags: []cli.Flag{
 		cli.StringFlag{
-			Name:  "type",
-			Usage: "look up attributes for node type",
+			Name:   "type",
+			Usage:  "look up attributes for node type",
+			EnvVar: "IPTB_PLUGIN",
 		},
 	},
 	Action: func(c *cli.Context) error {
