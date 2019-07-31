@@ -7,7 +7,7 @@ import (
 func YesNoPrompt(prompt string) bool {
 	var s string
 	for {
-		fmt.Println(prompt)
+		fmt.Printf("%s [y/n] ", prompt)
 		fmt.Scanf("%s", &s)
 		switch s {
 		case "y", "Y":
