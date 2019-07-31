@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"fmt"
 	"path"
 
 	cli "github.com/urfave/cli"
@@ -25,7 +26,7 @@ var TestbedCreateCmd = cli.Command{
 		cli.IntFlag{
 			Name:  "count",
 			Usage: "number of nodes to initialize",
-			Value: 1,
+			Value: 0,
 		},
 		cli.BoolFlag{
 			Name:  "force",
@@ -61,9 +62,17 @@ var TestbedCreateCmd = cli.Command{
 			return err
 		}
 
-		specs, err := testbed.BuildSpecs(tb.Dir(), flagCount, flagType, attrs)
-		if err != nil {
-			return err
+		var specs []*testbed.NodeSpec
+		if flagCount > 0 {
+			if flagType == "" {
+				return fmt.Errorf("must specify a type to create testbed nodes")
+			}
+
+			var err error
+			specs, err = testbed.BuildSpecs(tb.Dir(), flagCount, flagType, attrs)
+			if err != nil {
+				return err
+			}
 		}
 
 		if err := testbed.WriteNodeSpecs(tb.Dir(), specs); err != nil {
