@@ -78,7 +78,7 @@ $ go get github.com/ipfs/iptb
 
 ### Plugins
 
-Plugins are now used to implement support for managining nodes. Plugins are
+Plugins are now used to implement support for managing nodes. Plugins are
 stored under `$IPTB_ROOT/plugins` (see [configuration](#configuration))
 
 Plugins for the IPFS project can be found in [ipfs/iptb-plugins](https://github.com/ipfs/iptb-plugins).
