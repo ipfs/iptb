@@ -212,7 +212,7 @@ func validRange(list []int, total int) error {
 	}
 
 	if max >= total {
-		return fmt.Errorf("Node range contains value (%d) outside of valid range [0-%d]", max, total-1)
+		return fmt.Errorf("node range contains value (%d) outside of valid range [0-%d]", max, total-1)
 	}
 
 	return nil

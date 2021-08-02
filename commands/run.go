@@ -145,6 +145,9 @@ are printed.
 		}
 
 		results, err := mapListWithOutput(ranges, nodes, runCmds)
+		if err != nil {
+			return err
+		}
 		return buildReport(results, flagQuiet)
 	},
 }

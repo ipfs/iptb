@@ -164,7 +164,7 @@ var AttrListCmd = cli.Command{
 
 		plg, ok := testbed.GetPlugin(flagType)
 		if !ok {
-			return fmt.Errorf("Unknown plugin %s", flagType)
+			return fmt.Errorf("unknown plugin %s", flagType)
 		}
 
 		attrList := plg.GetAttrList()
