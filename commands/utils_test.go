@@ -47,7 +47,7 @@ func TestParseRange(t *testing.T) {
 
 func TestValidRange(t *testing.T) {
 	buildError := func(max, total int) error {
-		return fmt.Errorf("Node range contains value (%d) outside of valid range [0-%d]", max, total-1)
+		return fmt.Errorf("node range contains value (%d) outside of valid range [0-%d]", max, total-1)
 	}
 
 	cases := []struct {

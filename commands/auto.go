@@ -78,7 +78,7 @@ $ iptb auto           -count 5 -type <type>
 		}
 
 		var list []int
-		for i, _ := range nodes {
+		for i := range nodes {
 			list = append(list, i)
 		}
 
