@@ -8,10 +8,9 @@ import (
 	"strings"
 	"sync"
 
+	testbedi "github.com/ipfs/iptb/testbed/interfaces"
 	"github.com/pkg/errors"
 	cli "github.com/urfave/cli"
-
-	"github.com/ipfs/iptb/testbed/interfaces"
 )
 
 // the flag terminator stops flag parsing, but it also swallowed if its the

@@ -3,14 +3,13 @@ package commands
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"path"
 	"strings"
 
 	cli "github.com/urfave/cli"
 
 	"github.com/ipfs/iptb/testbed"
-	"github.com/ipfs/iptb/testbed/interfaces"
+	testbedi "github.com/ipfs/iptb/testbed/interfaces"
 )
 
 var LogsCmd = cli.Command{
@@ -58,8 +57,8 @@ var LogsCmd = cli.Command{
 				return nil, fmt.Errorf("node does not implement metrics")
 			}
 
-			stdout := ioutil.NopCloser(strings.NewReader(""))
-			stderr := ioutil.NopCloser(strings.NewReader(""))
+			stdout := io.NopCloser(strings.NewReader(""))
+			stderr := io.NopCloser(strings.NewReader(""))
 
 			if flagOut {
 				var err error

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -18,7 +17,7 @@ func loadPlugins(dir string) error {
 		return nil
 	}
 
-	plugs, err := ioutil.ReadDir(dir)
+	plugs, err := os.ReadDir(dir)
 	if err != nil {
 		return err
 	}

@@ -13,7 +13,7 @@ import (
 	cli "github.com/urfave/cli"
 
 	"github.com/ipfs/iptb/testbed"
-	"github.com/ipfs/iptb/testbed/interfaces"
+	testbedi "github.com/ipfs/iptb/testbed/interfaces"
 	"github.com/mattn/go-shellwords"
 )
 
