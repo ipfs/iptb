@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"plugin"
 
-	"github.com/ipfs/iptb/testbed/interfaces"
+	testbedi "github.com/ipfs/iptb/testbed/interfaces"
 )
 
 // NodeSpec represents a node's specification

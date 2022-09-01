@@ -3,13 +3,12 @@ package testbed
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 
-	"github.com/ipfs/iptb/testbed/interfaces"
-	"github.com/ipfs/iptb/util"
+	testbedi "github.com/ipfs/iptb/testbed/interfaces"
+	iptbutil "github.com/ipfs/iptb/util"
 )
 
 type Testbed interface {
@@ -165,7 +164,7 @@ func NodesFromSpecs(specs []*NodeSpec) ([]testbedi.Core, error) {
 }
 
 func ReadNodeSpecs(dir string) ([]*NodeSpec, error) {
-	data, err := ioutil.ReadFile(filepath.Join(dir, "nodespec.json"))
+	data, err := os.ReadFile(filepath.Join(dir, "nodespec.json"))
 	if err != nil {
 		return nil, err
 	}

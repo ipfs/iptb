@@ -3,9 +3,8 @@ package iptbutil
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 
-	"github.com/ipfs/iptb/testbed/interfaces"
+	testbedi "github.com/ipfs/iptb/testbed/interfaces"
 )
 
 type Output struct {
@@ -40,9 +39,9 @@ func (o *Output) ExitCode() int {
 }
 
 func (o *Output) Stdout() io.ReadCloser {
-	return ioutil.NopCloser(bytes.NewReader(o.stdout))
+	return io.NopCloser(bytes.NewReader(o.stdout))
 }
 
 func (o *Output) Stderr() io.ReadCloser {
-	return ioutil.NopCloser(bytes.NewReader(o.stderr))
+	return io.NopCloser(bytes.NewReader(o.stderr))
 }
