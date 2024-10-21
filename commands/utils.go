@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	testbedi "github.com/ipfs/iptb/testbed/interfaces"
-	"github.com/pkg/errors"
 	cli "github.com/urfave/cli"
 )
 
@@ -184,6 +183,9 @@ func mapWithOutput(list []int, nodes []testbedi.Core, fn outputFunc) ([]Result, 
 		go func(i, n int, node testbedi.Core) {
 			defer wg.Done()
 			out, err := fn(node)
+			if err != nil {
+				err = fmt.Errorf("node[%d]: %w", n, err)
+			}
 
 			lk.Lock()
 			defer lk.Unlock()
@@ -191,7 +193,7 @@ func mapWithOutput(list []int, nodes []testbedi.Core, fn outputFunc) ([]Result, 
 			results[i] = Result{
 				Node:   n,
 				Output: out,
-				Error:  errors.Wrapf(err, "node[%d]", n),
+				Error:  err,
 			}
 		}(i, n, nodes[n])
 	}

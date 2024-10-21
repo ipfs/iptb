@@ -6,10 +6,8 @@ import (
 	"path"
 	"time"
 
-	"github.com/pkg/errors"
-	cli "github.com/urfave/cli"
-
 	"github.com/ipfs/iptb/testbed"
+	cli "github.com/urfave/cli"
 )
 
 var ConnectCmd = cli.Command{
@@ -130,11 +128,14 @@ func connectNodes(tb testbed.BasicTestbed, from, to []int, timeout time.Duration
 			defer cancel()
 
 			err = nodes[f].Connect(ctx, nodes[t])
+			if err != nil {
+				err = fmt.Errorf("node[%d] => node[%d]: %w", f, t, err)
+			}
 
 			results = append(results, Result{
 				Node:   f,
 				Output: nil,
-				Error:  errors.Wrapf(err, "node[%d] => node[%d]", f, t),
+				Error:  err,
 			})
 		}
 	}
